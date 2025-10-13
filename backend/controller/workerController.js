@@ -154,6 +154,8 @@ const signupUser = async (req, res) => {
       error: e.message,
     });
   }
+
+  
 };
 
 export { signupUser, verifyWorkerWallet };

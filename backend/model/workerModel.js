@@ -8,6 +8,7 @@ function arrayLimit(val) {
 // Worker Profile Schema
 const workerProfileSchema = new mongoose.Schema({
   walletAddress: { type: String, required: true }, // ❌ no unique/index
+  PDAAddress: { type: String, default : null }, // ❌ no unique/index
   name: { type: String, trim: true },
   phone: { type: String },
   email: { type: String, lowercase: true }, // ❌ no unique/sparse
