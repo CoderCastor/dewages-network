@@ -13,11 +13,10 @@ import { Toaster } from "react-hot-toast";
 
 
 function App() {
-  const network = WalletAdapterNetwork.Devnet;
-
+  
   const endpoint = RPC_URL;
 
-  const wallets = useMemo(() => [], [network]);
+  const wallets = useMemo(() => [], [WalletAdapterNetwork.Devnet]);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
