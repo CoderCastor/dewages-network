@@ -8,6 +8,7 @@ import ProfileTestPage from "./pages/ProfileTestPage";
 import AdminLogin from "./pages/admin/AdminLogin";
 import WorkerDetailPage from "./pages/admin/WorkerDetailPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import CompanySignupForm from "./pages/CompanySignupForm";
 
 
 export const Router = createBrowserRouter([
@@ -42,6 +43,10 @@ export const Router = createBrowserRouter([
   {
     path: "/admin/worker/:workerId",
     Component: WorkerDetailPage,
+  },
+  {
+    path: "/company/signup",
+    Component: CompanySignupForm,
   },
 
 ]);
