@@ -1,10 +1,7 @@
 use anchor_lang::prelude::*;
 
-// This is your program's public key and it will update
-// automatically when you build the project.
-declare_id!("7HDt4y5twRafCBrNBhvPBqLTjT8kb6wHwLrxXYRsFFSz");
+declare_id!("Hpt911yk4X53evjjA2TH2oeKUNhhA9runV9DXqNxSnNc");
 
-// ADMIN PUBLIC KEY - Replace with your actual admin wallet address
 const ADMIN_PUBKEY: &str = "5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ";
 
 #[program]
@@ -15,8 +12,6 @@ pub mod employment_platform {
         Ok(())
     }
 
-    /// Create user profile - Can only be called by admin
-    /// Admin signs the transaction and creates PDA for the target user
     pub fn create_user_profile(
         ctx: Context<CreateUserProfile>,
         user_type: UserType,
@@ -24,7 +19,6 @@ pub mod employment_platform {
         phone: String,
         location: String,
     ) -> Result<()> {
-        // Verify that the signer is the admin
         let admin_key = ADMIN_PUBKEY.parse::<Pubkey>().unwrap();
         require!(
             ctx.accounts.admin.key() == admin_key,
@@ -32,7 +26,7 @@ pub mod employment_platform {
         );
 
         let user_profile = &mut ctx.accounts.user_profile;
-        user_profile.authority = ctx.accounts.target_user.key(); // Set the target user as authority
+        user_profile.authority = ctx.accounts.target_user.key();
         user_profile.user_type = user_type;
         user_profile.name = name;
         user_profile.phone = phone;
@@ -47,6 +41,7 @@ pub mod employment_platform {
         Ok(())
     }
 
+    /// STEP 1: Employer posts job AND locks payment in escrow immediately
     pub fn post_job(
         ctx: Context<PostJob>,
         title: String,
@@ -58,6 +53,9 @@ pub mod employment_platform {
         requirements: String,
     ) -> Result<()> {
         let job = &mut ctx.accounts.job;
+        let escrow = &mut ctx.accounts.escrow;
+
+        // Save job details
         job.employer = ctx.accounts.employer.key();
         job.title = title;
         job.description = description;
@@ -68,51 +66,58 @@ pub mod employment_platform {
         job.requirements = requirements;
         job.status = JobStatus::Open;
         job.created_at = Clock::get()?.unix_timestamp;
-        job.worker = None;
+        job.worker = None;  // No worker yet
         job.started_at = None;
         job.completed_at = None;
         job.dispute_deadline = None;
+
+        // IMMEDIATELY transfer payment to escrow using CPI
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.employer.to_account_info(),
+                to: escrow.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_context, payment_amount)?;
+
+        // Initialize escrow
+        escrow.job = job.key();
+        escrow.employer = ctx.accounts.employer.key();
+        escrow.worker = Pubkey::default();  // Will be set when worker assigned
+        escrow.amount = payment_amount;
+        escrow.is_locked = true;
+        escrow.created_at = Clock::get()?.unix_timestamp;
+
         Ok(())
     }
 
-    pub fn accept_job(ctx: Context<AcceptJob>) -> Result<()> {
+    /// STEP 2: Employer approves/assigns a worker to the job
+    pub fn assign_worker(ctx: Context<AssignWorker>) -> Result<()> {
         let job = &mut ctx.accounts.job;
+        let escrow = &mut ctx.accounts.escrow;
+
+        // Verify job is open
         require!(job.status == JobStatus::Open, ErrorCode::JobNotOpen);
 
+        // Verify the signer is the employer who posted the job
+        require!(
+            job.employer == ctx.accounts.employer.key(),
+            ErrorCode::UnauthorizedEmployer
+        );
+
+        // Assign worker to job
         job.worker = Some(ctx.accounts.worker.key());
         job.status = JobStatus::InProgress;
         job.started_at = Some(Clock::get()?.unix_timestamp);
+
+        // Update escrow with worker info
+        escrow.worker = ctx.accounts.worker.key();
+
         Ok(())
     }
 
-    pub fn lock_payment(ctx: Context<LockPayment>) -> Result<()> {
-        let job = &ctx.accounts.job;
-        let escrow = &mut ctx.accounts.escrow;
-
-        // Transfer SOL from employer to escrow account
-        let ix = anchor_lang::solana_program::system_instruction::transfer(
-            &ctx.accounts.employer.key(),
-            &escrow.key(),
-            job.payment_amount,
-        );
-
-        anchor_lang::solana_program::program::invoke(
-            &ix,
-            &[
-                ctx.accounts.employer.to_account_info(),
-                escrow.to_account_info(),
-            ],
-        )?;
-
-        escrow.job = job.key();
-        escrow.employer = ctx.accounts.employer.key();
-        escrow.worker = job.worker.unwrap();
-        escrow.amount = job.payment_amount;
-        escrow.is_locked = true;
-        escrow.created_at = Clock::get()?.unix_timestamp;
-        Ok(())
-    }
-
+    /// STEP 3: Worker submits proof of work
     pub fn submit_proof_of_work(
         ctx: Context<SubmitProofOfWork>,
         proof_type: ProofType,
@@ -131,10 +136,12 @@ pub mod employment_platform {
             ErrorCode::UnauthorizedWorker
         );
 
+        // Update job status and set dispute deadline (3 days)
         job.status = JobStatus::PendingVerification;
         job.completed_at = Some(Clock::get()?.unix_timestamp);
         job.dispute_deadline = Some(Clock::get()?.unix_timestamp + 3 * 24 * 60 * 60);
 
+        // Save proof of work
         proof_of_work.job = job.key();
         proof_of_work.worker = ctx.accounts.worker.key();
         proof_of_work.proof_type = proof_type;
@@ -142,34 +149,37 @@ pub mod employment_platform {
         proof_of_work.gps_coordinates = gps_coordinates;
         proof_of_work.submitted_at = Clock::get()?.unix_timestamp;
         proof_of_work.is_verified = false;
+
         Ok(())
     }
 
+    /// STEP 4: Auto-release payment after dispute period (if no dispute)
     pub fn release_payment(ctx: Context<ReleasePayment>) -> Result<()> {
         let job = &mut ctx.accounts.job;
         let escrow = &mut ctx.accounts.escrow;
 
+        // Verify job is in verification state
         require!(
             job.status == JobStatus::PendingVerification,
             ErrorCode::InvalidJobStatus
         );
 
+        // Verify dispute period has passed (3 days)
         let current_time = Clock::get()?.unix_timestamp;
         require!(
             job.dispute_deadline.unwrap() < current_time,
             ErrorCode::DisputePeriodActive
         );
 
+        // Transfer payment from escrow to worker
         **escrow.to_account_info().try_borrow_mut_lamports()? -= escrow.amount;
-        **ctx
-            .accounts
-            .worker
-            .to_account_info()
-            .try_borrow_mut_lamports()? += escrow.amount;
+        **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? += escrow.amount;
 
+        // Update job status
         job.status = JobStatus::Completed;
         escrow.is_locked = false;
 
+        // Update user statistics
         let employer_profile = &mut ctx.accounts.employer_profile;
         let worker_profile = &mut ctx.accounts.worker_profile;
 
@@ -180,23 +190,31 @@ pub mod employment_platform {
         Ok(())
     }
 
+    /// STEP 5: Employer creates dispute (within 3 days of proof submission)
     pub fn create_dispute(
         ctx: Context<CreateDispute>,
         reason: String,
         evidence: String,
     ) -> Result<()> {
-        let job = &ctx.accounts.job;
+        let job = &mut ctx.accounts.job;
         let dispute = &mut ctx.accounts.dispute;
 
+        // Verify job is in verification state
         require!(
             job.status == JobStatus::PendingVerification,
             ErrorCode::InvalidJobStatus
         );
+
+        // Verify dispute is within deadline
         require!(
             Clock::get()?.unix_timestamp <= job.dispute_deadline.unwrap(),
             ErrorCode::DisputePeriodExpired
         );
 
+        // Change job status to disputed (funds stay locked in escrow)
+        job.status = JobStatus::Disputed;
+
+        // Create dispute record
         dispute.job = job.key();
         dispute.employer = ctx.accounts.employer.key();
         dispute.worker = job.worker.unwrap();
@@ -206,6 +224,76 @@ pub mod employment_platform {
         dispute.created_at = Clock::get()?.unix_timestamp;
         dispute.resolved_at = None;
         dispute.resolution = None;
+
+        Ok(())
+    }
+
+    /// STEP 6: Admin resolves dispute
+    pub fn resolve_dispute(
+        ctx: Context<ResolveDispute>,
+        resolution: DisputeResolution,
+        resolution_notes: String,
+    ) -> Result<()> {
+        let admin_key = ADMIN_PUBKEY.parse::<Pubkey>().unwrap();
+        require!(
+            ctx.accounts.admin.key() == admin_key,
+            ErrorCode::UnauthorizedAdmin
+        );
+
+        let job = &mut ctx.accounts.job;
+        let escrow = &mut ctx.accounts.escrow;
+        let dispute = &mut ctx.accounts.dispute;
+
+        require!(job.status == JobStatus::Disputed, ErrorCode::JobNotDisputed);
+        require!(
+            dispute.status == DisputeStatus::Open,
+            ErrorCode::DisputeAlreadyResolved
+        );
+
+        // Update dispute record
+        dispute.status = match resolution {
+            DisputeResolution::FavorWorker => DisputeStatus::ResolvedForWorker,
+            DisputeResolution::FavorEmployer => DisputeStatus::ResolvedForEmployer,
+            DisputeResolution::Split => DisputeStatus::ResolvedForWorker, // Custom handling
+        };
+        dispute.resolved_at = Some(Clock::get()?.unix_timestamp);
+        dispute.resolution = Some(resolution_notes);
+
+        // Release payment based on resolution
+        match resolution {
+            DisputeResolution::FavorWorker => {
+                // Give full payment to worker
+                **escrow.to_account_info().try_borrow_mut_lamports()? -= escrow.amount;
+                **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? +=
+                    escrow.amount;
+
+                // Update profiles
+                ctx.accounts.worker_profile.total_earnings += escrow.amount;
+                ctx.accounts.worker_profile.total_jobs += 1;
+                ctx.accounts.employer_profile.total_jobs += 1;
+            }
+            DisputeResolution::FavorEmployer => {
+                // Refund to employer
+                **escrow.to_account_info().try_borrow_mut_lamports()? -= escrow.amount;
+                **ctx.accounts.employer.to_account_info().try_borrow_mut_lamports()? +=
+                    escrow.amount;
+            }
+            DisputeResolution::Split => {
+                // Split 50-50
+                let half = escrow.amount / 2;
+                **escrow.to_account_info().try_borrow_mut_lamports()? -= escrow.amount;
+                **ctx.accounts.worker.to_account_info().try_borrow_mut_lamports()? += half;
+                **ctx.accounts.employer.to_account_info().try_borrow_mut_lamports()? += half;
+
+                ctx.accounts.worker_profile.total_earnings += half;
+                ctx.accounts.worker_profile.total_jobs += 1;
+                ctx.accounts.employer_profile.total_jobs += 1;
+            }
+        }
+
+        job.status = JobStatus::Completed;
+        escrow.is_locked = false;
+
         Ok(())
     }
 
@@ -233,7 +321,7 @@ pub mod employment_platform {
 // Account Schemas
 #[account]
 pub struct UserProfile {
-    pub authority: Pubkey,              // The user's wallet address
+    pub authority: Pubkey,
     pub user_type: UserType,
     pub name: String,
     pub phone: String,
@@ -243,8 +331,8 @@ pub struct UserProfile {
     pub total_earnings: u64,
     pub is_active: bool,
     pub created_at: i64,
-    pub verified_by_admin: bool,        // NEW: Admin verification flag
-    pub verified_at: Option<i64>,       // NEW: Timestamp of admin verification
+    pub verified_by_admin: bool,
+    pub verified_at: Option<i64>,
 }
 
 #[account]
@@ -330,12 +418,12 @@ pub enum JobCategory {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum JobStatus {
-    Open,
-    InProgress,
-    PendingVerification,
-    Completed,
-    Disputed,
-    Cancelled,
+    Open,                // Job posted, payment locked, waiting for worker assignment
+    InProgress,          // Worker assigned and work started
+    PendingVerification, // Proof submitted, 3-day dispute period active
+    Completed,           // Payment released or dispute resolved
+    Disputed,            // Dispute raised, funds frozen
+    Cancelled,           // Job cancelled
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
@@ -355,32 +443,39 @@ pub enum DisputeStatus {
     Dismissed,
 }
 
-// Context structs for instructions
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+pub enum DisputeResolution {
+    FavorWorker,   // Give full payment to worker
+    FavorEmployer, // Refund to employer
+    Split,         // Split 50-50
+}
+
+// Context structs
 #[derive(Accounts)]
 pub struct InitializePlatform {}
 
-/// Updated CreateUserProfile context - Admin signs, creates PDA for target user
 #[derive(Accounts)]
 #[instruction(user_type: UserType, name: String, phone: String, location: String)]
 pub struct CreateUserProfile<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + 32 + 1 + 100 + 50 + 100 + 8 + 8 + 8 + 1 + 8 + 1 + 9, // Updated space calculation
+        space = 8 + 32 + 1 + 100 + 50 + 100 + 8 + 8 + 8 + 1 + 8 + 1 + 9,
         seeds = [b"user_profile", target_user.key().as_ref()],
         bump
     )]
     pub user_profile: Account<'info, UserProfile>,
-    
-    /// CHECK: This is the target user for whom the profile is being created
+
+    /// CHECK: Target user for profile creation
     pub target_user: AccountInfo<'info>,
-    
+
     #[account(mut)]
-    pub admin: Signer<'info>,  // Admin pays for the account creation
-    
+    pub admin: Signer<'info>,
+
     pub system_program: Program<'info, System>,
 }
 
+/// UPDATED: Post job AND lock payment in one transaction
 #[derive(Accounts)]
 pub struct PostJob<'info> {
     #[account(
@@ -389,20 +484,7 @@ pub struct PostJob<'info> {
         space = 8 + 1200,
     )]
     pub job: Account<'info, Job>,
-    #[account(mut)]
-    pub employer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
 
-#[derive(Accounts)]
-pub struct AcceptJob<'info> {
-    #[account(mut)]
-    pub job: Account<'info, Job>,
-    pub worker: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct LockPayment<'info> {
     #[account(
         init,
         payer = employer,
@@ -411,24 +493,48 @@ pub struct LockPayment<'info> {
         bump
     )]
     pub escrow: Account<'info, EscrowAccount>,
-    pub job: Account<'info, Job>,
+
     #[account(mut)]
     pub employer: Signer<'info>,
+
     pub system_program: Program<'info, System>,
+}
+
+/// UPDATED: Assign worker (simplified - just updates job and escrow)
+#[derive(Accounts)]
+pub struct AssignWorker<'info> {
+    #[account(mut)]
+    pub job: Account<'info, Job>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", job.key().as_ref()],
+        bump
+    )]
+    pub escrow: Account<'info, EscrowAccount>,
+
+    /// CHECK: Worker being assigned
+    pub worker: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub employer: Signer<'info>,
 }
 
 #[derive(Accounts)]
 pub struct SubmitProofOfWork<'info> {
     #[account(mut)]
     pub job: Account<'info, Job>,
+    
     #[account(
         init,
         payer = worker,
         space = 8 + 350,
     )]
     pub proof_of_work: Account<'info, ProofOfWork>,
+    
     #[account(mut)]
     pub worker: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -436,29 +542,64 @@ pub struct SubmitProofOfWork<'info> {
 pub struct ReleasePayment<'info> {
     #[account(mut)]
     pub job: Account<'info, Job>,
+    
     #[account(mut)]
     pub escrow: Account<'info, EscrowAccount>,
-    /// CHECK: Worker account to receive payment
+    
+    /// CHECK: Worker receiving payment
     #[account(mut)]
     pub worker: AccountInfo<'info>,
+    
     #[account(mut)]
     pub employer_profile: Account<'info, UserProfile>,
+    
     #[account(mut)]
     pub worker_profile: Account<'info, UserProfile>,
 }
 
 #[derive(Accounts)]
 pub struct CreateDispute<'info> {
+    #[account(mut)]
     pub job: Account<'info, Job>,
+    
     #[account(
         init,
         payer = employer,
         space = 8 + 800,
     )]
     pub dispute: Account<'info, Dispute>,
+    
     #[account(mut)]
     pub employer: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveDispute<'info> {
+    #[account(mut)]
+    pub job: Account<'info, Job>,
+    
+    #[account(mut)]
+    pub escrow: Account<'info, EscrowAccount>,
+    
+    #[account(mut)]
+    pub dispute: Account<'info, Dispute>,
+    
+    /// CHECK: Worker account
+    #[account(mut)]
+    pub worker: AccountInfo<'info>,
+    
+    #[account(mut)]
+    pub employer: Signer<'info>,
+    
+    #[account(mut)]
+    pub employer_profile: Account<'info, UserProfile>,
+    
+    #[account(mut)]
+    pub worker_profile: Account<'info, UserProfile>,
+    
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -469,13 +610,18 @@ pub struct RateUser<'info> {
         space = 8 + 320,
     )]
     pub user_rating: Account<'info, UserRating>,
+    
     pub job: Account<'info, Job>,
+    
     #[account(mut)]
     pub target_profile: Account<'info, UserProfile>,
+    
     /// CHECK: Target user being rated
     pub target_user: AccountInfo<'info>,
+    
     #[account(mut)]
     pub rater: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -498,4 +644,10 @@ pub enum ErrorCode {
     InvalidRating,
     #[msg("Only admin can create user profiles")]
     UnauthorizedAdmin,
+    #[msg("Only employer can assign workers")]
+    UnauthorizedEmployer,
+    #[msg("Job is not in disputed state")]
+    JobNotDisputed,
+    #[msg("Dispute already resolved")]
+    DisputeAlreadyResolved,
 }
