@@ -56,7 +56,7 @@ export function StatefulButton() {
         try {
           const message = new TextEncoder().encode(
             "Signup into Dewages Network"
-          );
+          );  
           const signature = await signMessage?.(message);
 
           const response = await axios.post(

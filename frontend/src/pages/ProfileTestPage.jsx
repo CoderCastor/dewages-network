@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
-import { Program, AnchorProvider, web3, BN } from '@project-serum/anchor';
+import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
 import toast from 'react-hot-toast';
 
 // Your deployed program ID

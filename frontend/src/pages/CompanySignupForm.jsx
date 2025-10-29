@@ -23,6 +23,7 @@ import { useWalletInformation } from "@/context/WalletContext";
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
+import {useNavigate} from "react-router"
 
 const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
 
@@ -129,6 +130,8 @@ const CompanySignupForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const { WalletAddress, isWalletVerified } = useWalletInformation();
+
+  const navigate = useNavigate()
 
   const [formData, setFormData] = useState({
     walletAddress: "",
@@ -321,6 +324,9 @@ const CompanySignupForm = () => {
       if (res.data.message === "Company profile created successfully") {
         toast.success("Company profile created successfully!");
         // Redirect or show success message
+        setTimeout(()=>{
+          navigate("/company/signin")
+        },800)
       }
     } catch (error) {
       console.error("Signup error:", error);

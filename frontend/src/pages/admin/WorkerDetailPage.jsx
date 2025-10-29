@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { Program, AnchorProvider } from "@project-serum/anchor";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import {
   ArrowLeft,
   User,
@@ -27,8 +27,12 @@ import axios from "axios";
 // If using Solana Playground: Use the Program ID shown after deployment
 // If using local Anchor: Run 'anchor keys list' to get the correct ID
 const PROGRAM_ID = new PublicKey(
-  "7HDt4y5twRafCBrNBhvPBqLTjT8kb6wHwLrxXYRsFFSz"
+  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
 );
+
+// const PROGRAM_ID = new PublicKey(
+//   "7HDt4y5twRafCBrNBhvPBqLTjT8kb6wHwLrxXYRsFFSz"
+// );
 
 // Updated IDL matching the new smart contract
 const IDL = {
