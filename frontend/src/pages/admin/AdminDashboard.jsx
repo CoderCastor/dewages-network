@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
+import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import {
   LogOut,
   Search,
@@ -18,81 +18,129 @@ import {
   Star,
   Briefcase,
   CheckCircle,
-  XCircle
-} from 'lucide-react';
-import { BACKEND_URL } from '@/env-variables';
+  XCircle,
+  Building2,
+} from "lucide-react";
+import { BACKEND_URL } from "@/env-variables";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+
+  // Shared state
+  const [activeTab, setActiveTab] = useState("workers");
+  const [adminName, setAdminName] = useState("Admin");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  // Workers state
   const [workers, setWorkers] = useState([]);
   const [filteredWorkers, setFilteredWorkers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [adminName, setAdminName] = useState('Admin');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showVerified, setShowVerified] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [stats, setStats] = useState({
+  const [showVerifiedWorkers, setShowVerifiedWorkers] = useState(false);
+  const [workerStats, setWorkerStats] = useState({
     total: 0,
     verified: 0,
-    unverified: 0
+    unverified: 0,
   });
 
-  const workersPerPage = 10;
+  // Companies state
+  const [companies, setCompanies] = useState([]);
+  const [filteredCompanies, setFilteredCompanies] = useState([]);
+  const [showVerifiedCompanies, setShowVerifiedCompanies] = useState(false);
+  const [companyStats, setCompanyStats] = useState({
+    total: 0,
+    verified: 0,
+    unverified: 0,
+  });
+
+  const itemsPerPage = 10;
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem("adminToken");
     if (!token) {
-      toast.error('Please login first');
-      navigate('/admin/login');
+      toast.error("Please login first");
+      navigate("/admin/login");
       return;
     }
 
-    // Get admin info from token (you can decode JWT or fetch from API)
-    const adminInfo = localStorage.getItem('adminInfo');
+    const adminInfo = localStorage.getItem("adminInfo");
     if (adminInfo) {
       const parsed = JSON.parse(adminInfo);
-      setAdminName(parsed.username || 'Admin');
+      setAdminName(parsed.username || "Admin");
     }
 
-    fetchWorkers();
+    fetchAllData();
   }, [navigate]);
 
   useEffect(() => {
-    filterWorkers();
-  }, [workers, showVerified, searchQuery]);
+    if (activeTab === "workers") {
+      filterWorkers();
+    } else {
+      filterCompanies();
+    }
+  }, [
+    workers,
+    companies,
+    showVerifiedWorkers,
+    showVerifiedCompanies,
+    searchQuery,
+    activeTab,
+  ]);
 
-  const fetchWorkers = async () => {
+  const fetchAllData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${BACKEND_URL}/admin/workers`, {
+      const token = localStorage.getItem("adminToken");
+
+      // Fetch workers
+      const workersRes = await fetch(`${BACKEND_URL}/admin/workers`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      // Fetch companies
+      const companiesRes = await fetch(`${BACKEND_URL}/admin/companies`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (workersRes.ok) {
+        const data = await workersRes.json();
         setWorkers(data.workers || []);
-        
-        // Calculate stats
+
         const total = data.workers.length;
-        const verified = data.workers.filter(w => w.isVerified).length;
-        setStats({
+        const verified = data.workers.filter((w) => w.isVerified).length;
+        setWorkerStats({
           total,
           verified,
-          unverified: total - verified
+          unverified: total - verified,
         });
-      } else if (response.status === 401) {
-        toast.error('Session expired. Please login again.');
+      }
+
+      if (companiesRes.ok) {
+        const data = await companiesRes.json();
+        setCompanies(data.companies || []);
+
+        const total = data.companies.length;
+        const verified = data.companies.filter((c) => c.isVerified).length;
+        setCompanyStats({
+          total,
+          verified,
+          unverified: total - verified,
+        });
+      }
+
+      if (workersRes.status === 401 || companiesRes.status === 401) {
+        toast.error("Session expired. Please login again.");
         handleLogout();
-      } else {
-        toast.error('Failed to fetch workers');
       }
     } catch (error) {
-      console.error('Error fetching workers:', error);
-      toast.error('Failed to connect to server');
+      console.error("Error fetching data:", error);
+      toast.error("Failed to connect to server");
     } finally {
       setLoading(false);
     }
@@ -101,19 +149,18 @@ export default function AdminDashboard() {
   const filterWorkers = () => {
     let filtered = [...workers];
 
-    // Filter by verification status
-    if (!showVerified) {
-      filtered = filtered.filter(worker => !worker.isVerified);
+    if (!showVerifiedWorkers) {
+      filtered = filtered.filter((worker) => !worker.isVerified);
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(worker => 
-        worker.name?.toLowerCase().includes(query) ||
-        worker.email?.toLowerCase().includes(query) ||
-        worker.phone?.includes(query) ||
-        worker.walletAddress?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (worker) =>
+          worker.name?.toLowerCase().includes(query) ||
+          worker.email?.toLowerCase().includes(query) ||
+          worker.phone?.includes(query) ||
+          worker.walletAddress?.toLowerCase().includes(query)
       );
     }
 
@@ -121,24 +168,52 @@ export default function AdminDashboard() {
     setCurrentPage(1);
   };
 
+  const filterCompanies = () => {
+    let filtered = [...companies];
+
+    if (!showVerifiedCompanies) {
+      filtered = filtered.filter((company) => !company.isVerified);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (company) =>
+          company.name?.toLowerCase().includes(query) ||
+          company.companyName?.toLowerCase().includes(query) ||
+          company.email?.toLowerCase().includes(query) ||
+          company.phone?.includes(query) ||
+          company.walletAddress?.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredCompanies(filtered);
+    setCurrentPage(1);
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminInfo');
-    toast.success('Logged out successfully');
-    navigate('/admin/login');
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminInfo");
+    toast.success("Logged out successfully");
+    navigate("/admin/login");
   };
 
-  const handleWorkerClick = (workerId) => {
-    navigate(`/admin/worker/${workerId}`);
+  const handleItemClick = (walletAddress) => {
+    if (activeTab === "workers") {
+      navigate(`/admin/worker/${walletAddress}`);
+    } else {
+      navigate(`/admin/company/${walletAddress}`);
+    }
   };
 
-  // Pagination
-  const indexOfLastWorker = currentPage * workersPerPage;
-  const indexOfFirstWorker = indexOfLastWorker - workersPerPage;
-  const currentWorkers = filteredWorkers.slice(indexOfFirstWorker, indexOfLastWorker);
-  const totalPages = Math.ceil(filteredWorkers.length / workersPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  // Get current data based on active tab
+  const currentData =
+    activeTab === "workers" ? filteredWorkers : filteredCompanies;
+  const currentStats = activeTab === "workers" ? workerStats : companyStats;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedData = currentData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(currentData.length / itemsPerPage);
 
   if (loading) {
     return (
@@ -148,11 +223,21 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <svg className="animate-spin h-16 w-16 text-purple-500 mx-auto mb-4" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          <svg
+            className="animate-spin h-16 w-16 text-purple-500 mx-auto mb-4"
+            viewBox="0 0 24 24"
+          >
+            ircle className="opacity-25" cx="12" cy="12" r="10"
+            stroke="currentColor" strokeWidth="4"4" fill="none" />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
           </svg>
-          <p className="text-slate-600 text-lg font-medium">Loading dashboard...</p>
+          <p className="text-slate-600 text-lg font-medium">
+            Loading dashboard...
+          </p>
         </motion.div>
       </div>
     );
@@ -173,8 +258,12 @@ export default function AdminDashboard() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">Admin Dashboard</h1>
-                <p className="text-xs text-slate-500">Worker Management System</p>
+                <h1 className="text-xl font-bold text-slate-800">
+                  Admin Dashboard
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Platform Management System
+                </p>
               </div>
             </div>
 
@@ -186,7 +275,9 @@ export default function AdminDashboard() {
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-800">{adminName}</p>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {adminName}
+                  </p>
                   <p className="text-xs text-slate-500">Administrator</p>
                 </div>
               </div>
@@ -204,6 +295,62 @@ export default function AdminDashboard() {
       </motion.nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="flex gap-4 mb-8 bg-white rounded-xl shadow-md p-2"
+        >
+          <button
+            onClick={() => {
+              setActiveTab("workers");
+              setSearchQuery("");
+            }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+              activeTab === "workers"
+                ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"
+                : "text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span>Workers</span>
+            <span
+              className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
+                activeTab === "workers"
+                  ? "bg-white text-purple-600"
+                  : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              {workerStats.total}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("companies");
+              setSearchQuery("");
+            }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+              activeTab === "companies"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg"
+                : "text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <Building2 className="w-5 h-5" />
+            <span>Companies</span>
+            <span
+              className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
+                activeTab === "companies"
+                  ? "bg-white text-blue-600"
+                  : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              {companyStats.total}
+            </span>
+          </button>
+        </motion.div>
+
         {/* Stats Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -214,11 +361,19 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Total Workers</p>
-                <p className="text-3xl font-bold text-slate-800 mt-1">{stats.total}</p>
+                <p className="text-sm text-slate-600 font-medium">
+                  Total {activeTab === "workers" ? "Workers" : "Companies"}
+                </p>
+                <p className="text-3xl font-bold text-slate-800 mt-1">
+                  {currentStats.total}
+                </p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
-                <Users className="w-8 h-8 text-blue-600" />
+                {activeTab === "workers" ? (
+                  <Users className="w-8 h-8 text-blue-600" />
+                ) : (
+                  <Building2 className="w-8 h-8 text-blue-600" />
+                )}
               </div>
             </div>
           </div>
@@ -226,8 +381,12 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Verified Workers</p>
-                <p className="text-3xl font-bold text-slate-800 mt-1">{stats.verified}</p>
+                <p className="text-sm text-slate-600 font-medium">
+                  Verified {activeTab === "workers" ? "Workers" : "Companies"}
+                </p>
+                <p className="text-3xl font-bold text-slate-800 mt-1">
+                  {currentStats.verified}
+                </p>
               </div>
               <div className="bg-green-100 p-3 rounded-lg">
                 <UserCheck className="w-8 h-8 text-green-600" />
@@ -238,8 +397,12 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 font-medium">Pending Verification</p>
-                <p className="text-3xl font-bold text-slate-800 mt-1">{stats.unverified}</p>
+                <p className="text-sm text-slate-600 font-medium">
+                  Pending Verification
+                </p>
+                <p className="text-3xl font-bold text-slate-800 mt-1">
+                  {currentStats.unverified}
+                </p>
               </div>
               <div className="bg-orange-100 p-3 rounded-lg">
                 <UserX className="w-8 h-8 text-orange-600" />
@@ -260,7 +423,7 @@ export default function AdminDashboard() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by name, email, phone, or wallet address..."
+                placeholder={`Search by name, email, phone, or wallet address...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
@@ -268,32 +431,46 @@ export default function AdminDashboard() {
             </div>
 
             <button
-              onClick={() => setShowVerified(!showVerified)}
+              onClick={() => {
+                if (activeTab === "workers") {
+                  setShowVerifiedWorkers(!showVerifiedWorkers);
+                } else {
+                  setShowVerifiedCompanies(!showVerifiedCompanies);
+                }
+              }}
               className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 whitespace-nowrap ${
-                showVerified
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
-                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                (
+                  activeTab === "workers"
+                    ? showVerifiedWorkers
+                    : showVerifiedCompanies
+                )
+                  ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg"
+                  : "bg-slate-200 text-slate-700 hover:bg-slate-300"
               }`}
             >
               <Filter className="w-5 h-5" />
-              {showVerified ? 'Show All' : 'Show Verified'}
+              {(
+                activeTab === "workers"
+                  ? showVerifiedWorkers
+                  : showVerifiedCompanies
+              )
+                ? "Show All"
+                : "Show Verified"}
             </button>
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
             <span className="font-medium">Showing:</span>
             <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">
-              {filteredWorkers.length} worker(s)
+              {currentData.length} item(s)
             </span>
             {searchQuery && (
-              <span className="text-slate-500">
-                matching "{searchQuery}"
-              </span>
+              <span className="text-slate-500">matching "{searchQuery}"</span>
             )}
           </div>
         </motion.div>
 
-        {/* Workers Table */}
+        {/* Table */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -302,22 +479,42 @@ export default function AdminDashboard() {
         >
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
+              <thead
+                className={`text-white ${
+                  activeTab === "workers"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-600"
+                    : "bg-gradient-to-r from-blue-500 to-cyan-600"
+                }`}
+              >
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Worker</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Contact</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Location</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Stats</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold">Action</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">
+                    {activeTab === "workers" ? "Worker" : "Company"} Name
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">
+                    Contact
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">
+                    Location
+                  </th>
+                  {activeTab === "workers" && (
+                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                      Stats
+                    </th>
+                  )}
+                  <th className="px-6 py-4 text-left text-sm font-semibold">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 <AnimatePresence>
-                  {currentWorkers.length > 0 ? (
-                    currentWorkers.map((worker, index) => (
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((item, index) => (
                       <motion.tr
-                        key={worker._id}
+                        key={item._id}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
@@ -326,18 +523,26 @@ export default function AdminDashboard() {
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <div
+                              className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                activeTab === "workers"
+                                  ? "bg-gradient-to-br from-purple-400 to-indigo-500"
+                                  : "bg-gradient-to-br from-blue-400 to-cyan-500"
+                              }`}
+                            >
                               <span className="text-white font-bold text-lg">
-                                {worker.name?.charAt(0).toUpperCase() || 'W'}
+                                {(item.name || item.companyName || "Unknown")
+                                  ?.charAt(0)
+                                  .toUpperCase()}
                               </span>
                             </div>
                             <div>
                               <p className="font-semibold text-slate-800">
-                                {worker.name || 'Unknown'}
+                                {item.name || item.companyName || "Unknown"}
                               </p>
                               <p className="text-xs text-slate-500 font-mono">
-                                {worker.walletAddress?.slice(0, 8)}...
-                                {worker.walletAddress?.slice(-6)}
+                                {item.walletAddress?.slice(0, 8)}...
+                                {item.walletAddress?.slice(-6)}
                               </p>
                             </div>
                           </div>
@@ -346,11 +551,11 @@ export default function AdminDashboard() {
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 text-sm text-slate-700">
                               <Mail className="w-4 h-4 text-slate-400" />
-                              {worker.email || 'N/A'}
+                              {item.email || "N/A"}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-slate-700">
                               <Phone className="w-4 h-4 text-slate-400" />
-                              {worker.phone || 'N/A'}
+                              {item.phone || "N/A"}
                             </div>
                           </div>
                         </td>
@@ -358,31 +563,33 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2 text-sm text-slate-700">
                             <MapPin className="w-4 h-4 text-slate-400" />
                             <span>
-                              {worker.location?.city && worker.location?.state
-                                ? `${worker.location.city}, ${worker.location.state}`
-                                : 'N/A'}
+                              {item.location?.city && item.location?.state
+                                ? `${item.location.city}, ${item.location.state}`
+                                : "N/A"}
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              <span className="text-slate-700 font-medium">
-                                {worker.rating?.toFixed(1) || '0.0'}
-                              </span>
+                        {activeTab === "workers" && (
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Star className="w-4 h-4 text-yellow-500" />
+                                <span className="text-slate-700 font-medium">
+                                  {item.rating?.toFixed(1) || "0.0"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Briefcase className="w-4 h-4 text-blue-500" />
+                                <span className="text-slate-700 font-medium">
+                                  {item.completedJobs || 0} jobs
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Briefcase className="w-4 h-4 text-blue-500" />
-                              <span className="text-slate-700 font-medium">
-                                {worker.completedJobs || 0} jobs
-                              </span>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
+                        )}
                         <td className="px-6 py-4">
                           <div className="space-y-2">
-                            {worker.isVerified ? (
+                            {item.isVerified ? (
                               <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                                 <CheckCircle className="w-4 h-4" />
                                 Verified
@@ -393,7 +600,7 @@ export default function AdminDashboard() {
                                 Pending
                               </span>
                             )}
-                            {worker.isActive ? (
+                            {item.isActive ? (
                               <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                                 Active
                               </span>
@@ -406,8 +613,12 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button
-                            onClick={() => handleWorkerClick(worker.walletAddress)}
-                            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105"
+                            onClick={() => handleItemClick(item.walletAddress)}
+                            className={`inline-flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 ${
+                              activeTab === "workers"
+                                ? "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700"
+                                : "bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700"
+                            }`}
                           >
                             View Details
                           </button>
@@ -416,14 +627,29 @@ export default function AdminDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center">
+                      <td
+                        colSpan={activeTab === "workers" ? 6 : 5}
+                        className="px-6 py-12 text-center"
+                      >
                         <div className="flex flex-col items-center justify-center">
-                          <Users className="w-16 h-16 text-slate-300 mb-4" />
-                          <p className="text-slate-500 text-lg font-medium">No workers found</p>
+                          {activeTab === "workers" ? (
+                            <Users className="w-16 h-16 text-slate-300 mb-4" />
+                          ) : (
+                            <Building2 className="w-16 h-16 text-slate-300 mb-4" />
+                          )}
+                          <p className="text-slate-500 text-lg font-medium">
+                            No{" "}
+                            {activeTab === "workers" ? "workers" : "companies"}{" "}
+                            found
+                          </p>
                           <p className="text-slate-400 text-sm mt-2">
                             {searchQuery
-                              ? 'Try adjusting your search criteria'
-                              : 'Workers will appear here once registered'}
+                              ? "Try adjusting your search criteria"
+                              : `${
+                                  activeTab === "workers"
+                                    ? "Workers"
+                                    : "Companies"
+                                } will appear here once registered`}
                           </p>
                         </div>
                       </td>
@@ -439,14 +665,15 @@ export default function AdminDashboard() {
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-slate-600">
-                  Showing {indexOfFirstWorker + 1} to{' '}
-                  {Math.min(indexOfLastWorker, filteredWorkers.length)} of{' '}
-                  {filteredWorkers.length} workers
+                  Showing {indexOfFirstItem + 1} to{" "}
+                  {Math.min(indexOfLastItem, currentData.length)} of{" "}
+                  {currentData.length}{" "}
+                  {activeTab === "workers" ? "workers" : "companies"}
                 </p>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => paginate(currentPage - 1)}
+                    onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg border border-slate-300 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
@@ -457,11 +684,13 @@ export default function AdminDashboard() {
                     {[...Array(totalPages)].map((_, index) => (
                       <button
                         key={index + 1}
-                        onClick={() => paginate(index + 1)}
+                        onClick={() => setCurrentPage(index + 1)}
                         className={`w-10 h-10 rounded-lg font-medium transition-all ${
                           currentPage === index + 1
-                            ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white'
-                            : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-300'
+                            ? activeTab === "workers"
+                              ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white"
+                              : "bg-gradient-to-r from-blue-500 to-cyan-600 text-white"
+                            : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-300"
                         }`}
                       >
                         {index + 1}
@@ -470,7 +699,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <button
-                    onClick={() => paginate(currentPage + 1)}
+                    onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg border border-slate-300 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >

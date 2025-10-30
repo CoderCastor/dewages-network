@@ -13,6 +13,7 @@ import WorkerSigninPage from "./pages/WorkerSigninPage";
 import CompanySigninPage from "./pages/CompanySigninPage";
 import CompanyDashboard from "./pages/CompanyDashboard";
 import WorkerDashboard from "./pages/WorkerDashboard";
+import CompanyDetailPage from "./pages/admin/CompanyDetails";
 
 
 export const Router = createBrowserRouter([
@@ -64,5 +65,9 @@ export const Router = createBrowserRouter([
     path: "/worker/dashboard",  // Add this route
     Component: WorkerDashboard,
   },
+  {
+  path: "/admin/company/:walletAddress",
+  Component: CompanyDetailPage,
+}
 
 ]);

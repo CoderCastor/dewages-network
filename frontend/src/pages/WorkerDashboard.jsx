@@ -59,7 +59,12 @@ const WorkerDashboard = () => {
   const tabs = [
     { id: "active", label: "Available Jobs", icon: Briefcase, color: "blue" },
     { id: "applied", label: "Applied", icon: Clock, color: "orange" },
-    { id: "inProgress", label: "In Progress", icon: TrendingUp, color: "orange" },
+    {
+      id: "inProgress",
+      label: "In Progress",
+      icon: TrendingUp,
+      color: "orange",
+    },
     { id: "completed", label: "Completed", icon: CheckCircle, color: "green" },
     { id: "rejected", label: "Rejected", icon: XCircle, color: "red" },
   ];
@@ -146,7 +151,7 @@ const WorkerDashboard = () => {
 
   const fetchStats = async () => {
     if (!publicKey) return;
-    
+
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`${BACKEND_URL}/job/worker/stats`, {
@@ -164,7 +169,7 @@ const WorkerDashboard = () => {
   const handleApplyJob = async (jobId) => {
     try {
       const token = localStorage.getItem("token");
-      
+
       const response = await axios.post(
         `${BACKEND_URL}/job/apply`,
         { jobId },
@@ -175,7 +180,7 @@ const WorkerDashboard = () => {
 
       if (response.data.success) {
         toast.success("Application submitted successfully!");
-        
+
         // Update the job in the list to show as applied
         setJobsByStatus((prev) => ({
           ...prev,
@@ -190,6 +195,19 @@ const WorkerDashboard = () => {
     } catch (error) {
       console.error("Error applying to job:", error);
       toast.error(error.response?.data?.message || "Failed to apply");
+    }
+  };
+
+  // NEW: Handler for OTP usage
+  const handleOTPUsed = async (jobId, otpType) => {
+    // Refresh the job data
+    await fetchJobs();
+    await fetchStats();
+
+    if (otpType === "start") {
+      toast.success("Job started! You can now enter End OTP when done.");
+    } else {
+      toast.success("Job completed! Entering dispute period...");
     }
   };
 
@@ -238,10 +256,10 @@ const WorkerDashboard = () => {
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.location?.city?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesCategory =
       categoryFilter === "all" || job.category === categoryFilter;
-    
+
     return matchesSearch && matchesCategory;
   });
 
@@ -268,7 +286,10 @@ const WorkerDashboard = () => {
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
+            <nav
+              className="flex space-x-8 px-6 overflow-x-auto"
+              aria-label="Tabs"
+            >
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -350,7 +371,9 @@ const WorkerDashboard = () => {
                     ? searchTerm || categoryFilter !== "all"
                       ? "Try adjusting your search or filters"
                       : "Check back later for new opportunities"
-                    : `No ${activeTab.replace(/([A-Z])/g, " $1").toLowerCase()} jobs yet`}
+                    : `No ${activeTab
+                        .replace(/([A-Z])/g, " $1")
+                        .toLowerCase()} jobs yet`}
                 </p>
               </div>
             ) : (
@@ -362,6 +385,7 @@ const WorkerDashboard = () => {
                     onClick={() => handleJobClick(job)}
                     onApply={handleApplyJob}
                     showApplyButton={activeTab === "active"}
+                    onOTPUsed={handleOTPUsed} // NEW: Add OTP handler
                   />
                 ))}
               </div>
@@ -378,6 +402,8 @@ const WorkerDashboard = () => {
             onClose={() => {
               setShowJobDetailsModal(false);
               setSelectedJob(null);
+              // Refresh jobs when modal closes to get updated data
+              fetchJobs();
             }}
             job={selectedJob}
             onApply={handleApplyJob}
