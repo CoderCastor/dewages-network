@@ -18,6 +18,49 @@ const jobSchema = new mongoose.Schema(
       ref: "CompanyProfile",
       index: true,
     },
+
+    // Start Job OTP
+    startJobOTP: {
+      code: { type: String },
+      generatedAt: { type: Date },
+      expiresAt: { type: Date },
+      isUsed: { type: Boolean, default: false },
+      usedAt: { type: Date },
+    },
+
+      proofOfWork: {
+      accountAddress: { type: String },      // ✅ Blockchain account address
+      txSignature: { type: String },         // ✅ Transaction signature
+      proofType: { type: String },           // ✅ "OTP", "Photo", etc.
+      proofData: { type: String },           // ✅ Proof description
+      submittedAt: { type: Date },           // ✅ Submission timestamp
+      isVerified: { type: Boolean, default: false }, // ✅ Verification status
+    },
+
+    // End Job OTP (Completion OTP)
+    endJobOTP: {
+      code: { type: String },
+      generatedAt: { type: Date },
+      expiresAt: { type: Date },
+      isUsed: { type: Boolean, default: false },
+      usedAt: { type: Date },
+    },
+
+     disputePeriod: {
+      startedAt: { type: Date }, // When end OTP was used (job completed)
+      endsAt: { type: Date }, // startedAt + 3 days
+      isActive: { type: Boolean, default: false },
+      isExpired: { type: Boolean, default: false },
+    },
+
+    // Payment/Fund Transfer Status
+    fundTransfer: {
+      isTransferred: { type: Boolean, default: false },
+      transferredAt: { type: Date },
+      transactionSignature: { type: String },
+      amount: { type: Number }, // Amount in lamports
+    },
+
     companyName: { type: String, required: true },
 
     // Job Details
@@ -106,14 +149,6 @@ const jobSchema = new mongoose.Schema(
     completedAt: { type: Date },
     disputeDeadline: { type: Date },
 
-    // Proof of Work (reference to S3)
-    proofOfWork: {
-      proofPDA: { type: String },
-      s3Urls: [{ type: String }],
-      gpsCoordinates: { type: String },
-      submittedAt: { type: Date },
-      isVerified: { type: Boolean, default: false },
-    },
 
     // Dispute (if any)
     dispute: {

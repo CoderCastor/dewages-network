@@ -1,0 +1,361 @@
+{
+  "version": "0.1.0",
+  "name": "employment_platform",
+  "instructions": [
+    {
+      "name": "assignWorker",
+      "accounts": [
+        { "name": "job", "isMut": true, "isSigner": false },
+        { "name": "escrow", "isMut": true, "isSigner": false },
+        { "name": "worker", "isMut": false, "isSigner": false },
+        { "name": "employer", "isMut": true, "isSigner": true }
+      ],
+      "args": []
+    },
+    {
+      "name": "createDispute",
+      "accounts": [
+        { "name": "job", "isMut": true, "isSigner": false },
+        { "name": "dispute", "isMut": true, "isSigner": true },
+        { "name": "employer", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "reason", "type": "string" },
+        { "name": "evidence", "type": "string" }
+      ]
+    },
+    {
+      "name": "createUserProfile",
+      "accounts": [
+        { "name": "userProfile", "isMut": true, "isSigner": false },
+        { "name": "targetUser", "isMut": false, "isSigner": false },
+        { "name": "admin", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "userType", "type": { "defined": "UserType" } },
+        { "name": "name", "type": "string" },
+        { "name": "phone", "type": "string" },
+        { "name": "location", "type": "string" }
+      ]
+    },
+    {
+      "name": "initializePlatform",
+      "accounts": [],
+      "args": []
+    },
+    {
+      "name": "postJob",
+      "accounts": [
+        { "name": "job", "isMut": true, "isSigner": true },
+        { "name": "escrow", "isMut": true, "isSigner": false },
+        { "name": "employer", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "title", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "category", "type": { "defined": "JobCategory" } },
+        { "name": "paymentAmount", "type": "u64" },
+        { "name": "location", "type": "string" },
+        { "name": "durationHours", "type": "u16" },
+        { "name": "requirements", "type": "string" }
+      ]
+    },
+    {
+      "name": "rateUser",
+      "accounts": [
+        { "name": "userRating", "isMut": true, "isSigner": true },
+        { "name": "job", "isMut": false, "isSigner": false },
+        { "name": "targetProfile", "isMut": true, "isSigner": false },
+        { "name": "targetUser", "isMut": false, "isSigner": false },
+        { "name": "rater", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "rating", "type": "u8" },
+        { "name": "review", "type": "string" }
+      ]
+    },
+    {
+      "name": "releasePayment",
+      "accounts": [
+        { "name": "job", "isMut": true, "isSigner": false },
+        { "name": "escrow", "isMut": true, "isSigner": false },
+        { "name": "worker", "isMut": true, "isSigner": false },
+        { "name": "employerProfile", "isMut": true, "isSigner": false },
+        { "name": "workerProfile", "isMut": true, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolveDispute",
+      "accounts": [
+        { "name": "job", "isMut": true, "isSigner": false },
+        { "name": "escrow", "isMut": true, "isSigner": false },
+        { "name": "dispute", "isMut": true, "isSigner": false },
+        { "name": "worker", "isMut": true, "isSigner": false },
+        { "name": "employer", "isMut": true, "isSigner": false },
+        { "name": "employerProfile", "isMut": true, "isSigner": false },
+        { "name": "workerProfile", "isMut": true, "isSigner": false },
+        { "name": "admin", "isMut": false, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "resolution", "type": { "defined": "DisputeResolution" } },
+        { "name": "resolutionNotes", "type": "string" }
+      ]
+    },
+    {
+      "name": "submitProofOfWork",
+      "accounts": [
+        { "name": "job", "isMut": true, "isSigner": false },
+        { "name": "proofOfWork", "isMut": true, "isSigner": true },
+        { "name": "worker", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "proofType", "type": { "defined": "ProofType" } },
+        { "name": "proofData", "type": "string" },
+        { "name": "gpsCoordinates", "type": { "option": "string" } }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Dispute",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "job", "type": "publicKey" },
+          { "name": "employer", "type": "publicKey" },
+          { "name": "worker", "type": "publicKey" },
+          { "name": "reason", "type": "string" },
+          { "name": "evidence", "type": "string" },
+          { "name": "status", "type": { "defined": "DisputeStatus" } },
+          { "name": "createdAt", "type": "i64" },
+          { "name": "resolvedAt", "type": { "option": "i64" } },
+          { "name": "resolution", "type": { "option": "string" } }
+        ]
+      }
+    },
+    {
+      "name": "EscrowAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "job", "type": "publicKey" },
+          { "name": "employer", "type": "publicKey" },
+          { "name": "worker", "type": "publicKey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "isLocked", "type": "bool" },
+          { "name": "createdAt", "type": "i64" }
+        ]
+      }
+    },
+    {
+      "name": "Job",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "employer", "type": "publicKey" },
+          { "name": "worker", "type": { "option": "publicKey" } },
+          { "name": "title", "type": "string" },
+          { "name": "description", "type": "string" },
+          { "name": "category", "type": { "defined": "JobCategory" } },
+          { "name": "paymentAmount", "type": "u64" },
+          { "name": "location", "type": "string" },
+          { "name": "durationHours", "type": "u16" },
+          { "name": "requirements", "type": "string" },
+          { "name": "status", "type": { "defined": "JobStatus" } },
+          { "name": "createdAt", "type": "i64" },
+          { "name": "startedAt", "type": { "option": "i64" } },
+          { "name": "completedAt", "type": { "option": "i64" } },
+          { "name": "disputeDeadline", "type": { "option": "i64" } }
+        ]
+      }
+    },
+    {
+      "name": "ProofOfWork",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "job", "type": "publicKey" },
+          { "name": "worker", "type": "publicKey" },
+          { "name": "proofType", "type": { "defined": "ProofType" } },
+          { "name": "proofData", "type": "string" },
+          { "name": "gpsCoordinates", "type": { "option": "string" } },
+          { "name": "submittedAt", "type": "i64" },
+          { "name": "isVerified", "type": "bool" }
+        ]
+      }
+    },
+    {
+      "name": "UserProfile",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "publicKey" },
+          { "name": "userType", "type": { "defined": "UserType" } },
+          { "name": "name", "type": "string" },
+          { "name": "phone", "type": "string" },
+          { "name": "location", "type": "string" },
+          { "name": "rating", "type": "u64" },
+          { "name": "totalJobs", "type": "u64" },
+          { "name": "totalEarnings", "type": "u64" },
+          { "name": "isActive", "type": "bool" },
+          { "name": "createdAt", "type": "i64" },
+          { "name": "verifiedByAdmin", "type": "bool" },
+          { "name": "verifiedAt", "type": { "option": "i64" } }
+        ]
+      }
+    },
+    {
+      "name": "UserRating",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "rater", "type": "publicKey" },
+          { "name": "target", "type": "publicKey" },
+          { "name": "job", "type": "publicKey" },
+          { "name": "rating", "type": "u8" },
+          { "name": "review", "type": "string" },
+          { "name": "createdAt", "type": "i64" }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "JobCategory",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Construction" },
+          { "name": "Delivery" },
+          { "name": "DomesticHelp" },
+          { "name": "EventStaffing" },
+          { "name": "Agriculture" },
+          { "name": "Cleaning" },
+          { "name": "Security" },
+          { "name": "Other" }
+        ]
+      }
+    },
+    {
+      "name": "JobStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Open" },
+          { "name": "InProgress" },
+          { "name": "PendingVerification" },
+          { "name": "Completed" },
+          { "name": "Disputed" },
+          { "name": "Cancelled" }
+        ]
+      }
+    },
+    {
+      "name": "ProofType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Photo" },
+          { "name": "QRCode" },
+          { "name": "OTP" },
+          { "name": "GPS" }
+        ]
+      }
+    },
+    {
+      "name": "DisputeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Open" },
+          { "name": "UnderReview" },
+          { "name": "ResolvedForEmployer" },
+          { "name": "ResolvedForWorker" },
+          { "name": "Dismissed" }
+        ]
+      }
+    },
+    {
+      "name": "DisputeResolution",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "FavorWorker" },
+          { "name": "FavorEmployer" },
+          { "name": "Split" }
+        ]
+      }
+    },
+    {
+      "name": "UserType",
+      "type": {
+        "kind": "enum",
+        "variants": [{ "name": "Worker" }, { "name": "Employer" }]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "JobNotOpen",
+      "msg": "Job is not open for applications"
+    },
+    {
+      "code": 6001,
+      "name": "JobNotInProgress",
+      "msg": "Job is not in progress"
+    },
+    {
+      "code": 6002,
+      "name": "UnauthorizedWorker",
+      "msg": "Unauthorized worker"
+    },
+    { "code": 6003, "name": "InvalidJobStatus", "msg": "Invalid job status" },
+    {
+      "code": 6004,
+      "name": "DisputePeriodActive",
+      "msg": "Dispute period is still active"
+    },
+    {
+      "code": 6005,
+      "name": "DisputePeriodExpired",
+      "msg": "Dispute period has expired"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidRating",
+      "msg": "Rating must be between 1 and 5"
+    },
+    {
+      "code": 6007,
+      "name": "UnauthorizedAdmin",
+      "msg": "Only admin can create user profiles"
+    },
+    {
+      "code": 6008,
+      "name": "UnauthorizedEmployer",
+      "msg": "Only employer can assign workers"
+    },
+    {
+      "code": 6009,
+      "name": "JobNotDisputed",
+      "msg": "Job is not in disputed state"
+    },
+    {
+      "code": 6010,
+      "name": "DisputeAlreadyResolved",
+      "msg": "Dispute already resolved"
+    }
+  ],
+  "metadata": {
+    "address": "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+  }
+}

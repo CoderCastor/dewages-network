@@ -1,10 +1,26 @@
 // ============================================================================
-// controllers/jobController.js - Job Management
+// controllers/jobController.js - Job Management (CLEANED UP)
 // ============================================================================
 
 import { Job, JobApplication } from "../model/jobModel.js";
 import { CompanyProfile } from "../model/companyModel.js";
 import { WorkerProfile } from "../model/workerModel.js";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import { config } from "../config.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// Load IDL
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const idlPath = join(__dirname, "../idl/employment_platform.json");
+const idl = JSON.parse(readFileSync(idlPath, "utf-8"));
+
+const { programId, rpcUrl } = config;
+const PROGRAM_ID = programId;
+const RPC_URL = rpcUrl;
 
 // ============================================================================
 // Create Job (After blockchain transaction)
@@ -36,8 +52,10 @@ const createJob = async (req, res) => {
     }
 
     // Get company details
-    const company = await CompanyProfile.findOne({ walletAddress: companyWallet });
-    
+    const company = await CompanyProfile.findOne({
+      walletAddress: companyWallet,
+    });
+
     if (!company) {
       return res.status(404).json({
         success: false,
@@ -216,7 +234,7 @@ const getCompanyStats = async (req, res) => {
       ),
     };
 
-    // ✅ Calculate stats
+    // Calculate stats
     const stats = {
       totalJobs: jobs.length,
       activeJobs: jobsByStatus.active.length,
@@ -230,7 +248,7 @@ const getCompanyStats = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      stats, // ✅ Add stats object
+      stats,
       jobs: status ? jobs : jobsByStatus,
       total: jobs.length,
     });
@@ -366,6 +384,15 @@ const getJobApplications = async (req, res) => {
     const { jobId } = req.params;
     const companyWallet = req.user.walletAddress;
 
+    // Validate jobId
+    if (!jobId || jobId === "undefined") {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID is required and must be valid",
+      });
+    }
+
+    // Find the job
     const job = await Job.findById(jobId);
 
     if (!job) {
@@ -375,32 +402,61 @@ const getJobApplications = async (req, res) => {
       });
     }
 
-    // Verify company owns this job
+    // Verify the company owns this job
     if (job.companyWallet !== companyWallet) {
       return res.status(403).json({
         success: false,
-        message: "Unauthorized to view applications",
+        message: "Unauthorized to view applications for this job",
       });
     }
 
-    // Get detailed worker info for each application
+    // Get applications with worker details
     const applicationsWithDetails = await Promise.all(
       job.applications.map(async (app) => {
-        const worker = await WorkerProfile.findOne({
-          walletAddress: app.workerWallet,
-        }).select("name rating totalJobs completedJobs experienceLevel skills");
+        try {
+          const workerProfile = await WorkerProfile.findOne({
+            walletAddress: app.workerWallet,
+          });
 
-        return {
-          ...app.toObject(),
-          workerDetails: worker,
-        };
+          return {
+            workerWallet: app.workerWallet,
+            workerName: workerProfile?.name || "Unknown Worker",
+            status: app.status,
+            appliedAt: app.appliedAt,
+            coverLetter: app.coverLetter,
+            workerDetails: workerProfile
+              ? {
+                  name: workerProfile.name,
+                  rating: workerProfile.rating,
+                  completedJobs: workerProfile.totalJobs,
+                  experienceLevel: workerProfile.experienceLevel || "beginner",
+                  skills: workerProfile.skills || [],
+                  phone: workerProfile.phone,
+                  location: workerProfile.location,
+                }
+              : null,
+          };
+        } catch (err) {
+          console.error(
+            `Error fetching worker profile for ${app.workerWallet}:`,
+            err
+          );
+          return {
+            workerWallet: app.workerWallet,
+            workerName: "Unknown Worker",
+            status: app.status,
+            appliedAt: app.appliedAt,
+            coverLetter: app.coverLetter,
+            workerDetails: null,
+          };
+        }
       })
     );
 
     return res.status(200).json({
       success: true,
       applications: applicationsWithDetails,
-      total: applicationsWithDetails.length,
+      count: applicationsWithDetails.length,
     });
   } catch (error) {
     console.error("Error fetching applications:", error);
@@ -418,8 +474,16 @@ const getJobApplications = async (req, res) => {
 
 const approveWorkerApplication = async (req, res) => {
   try {
-    const { jobId, workerWallet } = req.body;
+    const { jobId, workerWallet, transactionSignature, escrowPDA } = req.body;
     const companyWallet = req.user.walletAddress;
+
+    // Validate required fields
+    if (!jobId || !workerWallet) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: jobId and workerWallet",
+      });
+    }
 
     const job = await Job.findById(jobId);
 
@@ -434,14 +498,14 @@ const approveWorkerApplication = async (req, res) => {
     if (job.companyWallet !== companyWallet) {
       return res.status(403).json({
         success: false,
-        message: "Unauthorized to approve applications",
+        message: "Unauthorized to approve applications for this job",
       });
     }
 
     if (job.status !== "open") {
       return res.status(400).json({
         success: false,
-        message: "Job is not open",
+        message: `Job is not open. Current status: ${job.status}`,
       });
     }
 
@@ -453,40 +517,63 @@ const approveWorkerApplication = async (req, res) => {
     if (!application) {
       return res.status(404).json({
         success: false,
-        message: "Application not found",
+        message: "Application not found for this worker",
+      });
+    }
+
+    // Check if application is already approved
+    if (application.status === "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Application already approved",
       });
     }
 
     // Update application status
     application.status = "approved";
+    application.approvedAt = new Date();
 
     // Update job with assigned worker
     job.assignedWorker = workerWallet;
+
     const worker = await WorkerProfile.findOne({ walletAddress: workerWallet });
-    job.workerName = worker?.name || "Unknown";
+    job.workerName = worker?.name || "Unknown Worker";
     job.workerPDA = worker?.PDAAddress || null;
 
-    // Note: Status will be updated to "in_progress" after blockchain assign_worker call
-    // For now, keep it as metadata update
+    // Update job status to in_progress
+    job.status = "in_progress";
+
+    // Store blockchain transaction details
+    if (transactionSignature) {
+      job.assignWorkerTxSignature = transactionSignature;
+    }
+    if (escrowPDA) {
+      job.escrowPDA = escrowPDA;
+    }
 
     await job.save();
 
-    console.log(`✓ Worker ${workerWallet} approved for job ${jobId}`);
+    console.log(`✅ Worker ${workerWallet} approved for job ${jobId}`);
+    console.log(`✅ Job status updated to in_progress`);
 
     return res.status(200).json({
-      success: false,
-      message: "Worker approved successfully. Please complete blockchain transaction.",
+      success: true,
+      message: "Worker approved successfully and job status updated",
       job: {
         id: job._id,
+        status: job.status,
         assignedWorker: job.assignedWorker,
         workerName: job.workerName,
+        workerPDA: job.workerPDA,
+        transactionSignature: transactionSignature,
+        escrowPDA: escrowPDA,
       },
     });
   } catch (error) {
-    console.error("Error approving worker:", error);
+    console.error("❌ Error approving worker:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to approve worker",
+      message: "Failed to approve worker in database",
       error: error.message,
     });
   }
@@ -566,8 +653,10 @@ const getWorkerJobs = async (req, res) => {
 
     if (status === "available") {
       // Get worker profile to filter by categories
-      const worker = await WorkerProfile.findOne({ walletAddress: workerWallet });
-      
+      const worker = await WorkerProfile.findOne({
+        walletAddress: workerWallet,
+      });
+
       if (!worker) {
         return res.status(404).json({
           success: false,
@@ -610,7 +699,9 @@ const getWorkerJobs = async (req, res) => {
           (j.status === "completed" || j.status === "pending_verification")
       ),
       rejected: jobs.filter((j) => {
-        const app = j.applications?.find((a) => a.workerWallet === workerWallet);
+        const app = j.applications?.find(
+          (a) => a.workerWallet === workerWallet
+        );
         return app?.status === "rejected";
       }),
     };
@@ -630,6 +721,578 @@ const getWorkerJobs = async (req, res) => {
   }
 };
 
+// ============================================================================
+// Generate Job OTP (Company)
+// ============================================================================
+
+const generateJobOTP = async (req, res) => {
+  try {
+    const { jobId, otpType } = req.body;
+    const companyWallet = req.user.walletAddress;
+
+    // Validate input
+    if (!jobId) {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID is required",
+      });
+    }
+
+    if (!otpType || !["start", "end"].includes(otpType)) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP type must be 'start' or 'end'",
+      });
+    }
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Verify company owns this job
+    if (job.companyWallet !== companyWallet) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized to generate OTP for this job",
+      });
+    }
+
+    // Verify job is in_progress
+    if (job.status !== "in_progress") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot generate OTP. Job status must be 'in_progress', current status: ${job.status}`,
+      });
+    }
+
+    // Check if worker is assigned
+    if (!job.assignedWorker) {
+      return res.status(400).json({
+        success: false,
+        message: "No worker assigned to this job",
+      });
+    }
+
+    // Determine which OTP field to update
+    const otpField = otpType === "start" ? "startJobOTP" : "endJobOTP";
+    const otpLabel = otpType === "start" ? "Start Job" : "End Job";
+
+    // Check if OTP already exists and is still valid
+    const existingOTP = job[otpField];
+    if (
+      existingOTP?.code &&
+      !existingOTP.isUsed &&
+      existingOTP.expiresAt > new Date()
+    ) {
+      return res.status(200).json({
+        success: true,
+        message: `${otpLabel} OTP already exists and is valid`,
+        otp: {
+          code: existingOTP.code,
+          expiresAt: existingOTP.expiresAt,
+          type: otpType,
+        },
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours expiry
+
+    // Store OTP in job
+    job[otpField] = {
+      code: otpCode,
+      generatedAt: now,
+      expiresAt: expiresAt,
+      isUsed: false,
+    };
+
+    await job.save();
+
+    console.log(`✅ ${otpLabel} OTP generated for job ${jobId}: ${otpCode}`);
+
+    return res.status(200).json({
+      success: true,
+      message: `${otpLabel} OTP generated successfully`,
+      otp: {
+        code: otpCode,
+        expiresAt: expiresAt,
+        type: otpType,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error generating OTP:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate OTP",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Verify and Use OTP (Worker)
+// ============================================================================
+
+const verifyJobOTP = async (req, res) => {
+  try {
+    const { jobId, otpCode, otpType } = req.body;
+
+    if (!jobId || !otpCode || !otpType) {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID, OTP code, and OTP type are required",
+      });
+    }
+
+    if (!["start", "end"].includes(otpType)) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP type must be 'start' or 'end'",
+      });
+    }
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    const otpField = otpType === "start" ? "startJobOTP" : "endJobOTP";
+    const storedOTP = job[otpField];
+
+    // Validate OTP
+    if (!storedOTP?.code) {
+      return res.status(400).json({
+        success: false,
+        message: "No OTP generated for this job yet",
+      });
+    }
+
+    if (storedOTP.isUsed) {
+      return res.status(400).json({
+        success: false,
+        message: "This OTP has already been used",
+      });
+    }
+
+    if (storedOTP.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    if (storedOTP.code !== otpCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP code",
+      });
+    }
+
+    // Additional validation for end OTP
+    if (otpType === "end" && !job.startJobOTP?.isUsed) {
+      return res.status(400).json({
+        success: false,
+        message: "You must start the job first",
+      });
+    }
+
+    // Handle START OTP - Mark as used immediately
+    if (otpType === "start") {
+      storedOTP.isUsed = true;
+      storedOTP.usedAt = new Date();
+      await job.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Job started successfully",
+        otpType: "start",
+        job: {
+          id: job._id,
+          status: job.status,
+        },
+      });
+    }
+
+    // Handle END OTP - Signal frontend to submit proof to blockchain
+    if (otpType === "end") {
+      return res.status(200).json({
+        success: true,
+        message: "OTP verified. Please submit proof of work on blockchain",
+        otpType: "end",
+        requiresBlockchainProof: true,
+        blockchainData: {
+          jobPDA: job.jobPDA,
+          workerWallet: job.assignedWorker,
+          proofData: `End OTP verified: ${otpCode}`,
+        },
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error verifying OTP:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify OTP",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Record Proof Submission (After worker submits to blockchain from frontend)
+// ============================================================================
+
+const recordProofSubmission = async (req, res) => {
+  try {
+    const { jobId, txSignature, proofAccountAddress, proofType, proofData } = req.body;
+
+    console.log("📝 Recording proof submission:", {
+      jobId,
+      txSignature,
+      proofAccountAddress,
+    });
+
+    // Validation
+    if (!jobId || !txSignature || !proofAccountAddress) {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID, transaction signature, and proof account address are required",
+      });
+    }
+
+    // Find job
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Verify job is in correct state
+    if (job.status !== "in_progress") {
+      return res.status(400).json({
+        success: false,
+        message: "Job must be in progress",
+        currentStatus: job.status,
+      });
+    }
+
+    // Check if proof already submitted
+    if (job.endJobOTP?.isUsed || job.proofOfWork?.accountAddress) {
+      return res.status(400).json({
+        success: false,
+        message: "Proof already submitted for this job",
+      });
+    }
+
+    // Update job in database
+    const now = new Date();
+    const disputeEndsAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days
+
+    // Mark end OTP as used
+    job.endJobOTP.isUsed = true;
+    job.endJobOTP.usedAt = now;
+
+    // Set dispute period
+    job.disputePeriod = {
+      startedAt: now,
+      endsAt: disputeEndsAt,
+      isActive: true,
+      isExpired: false,
+    };
+
+    // Update status
+    job.status = "pending_verification";
+
+    // Store proof of work details
+    job.proofOfWork = {
+      accountAddress: proofAccountAddress,
+      txSignature: txSignature,
+      proofType: proofType || "OTP",
+      proofData: proofData || "End OTP verified and work completed",
+      submittedAt: now,
+      isVerified: false,
+    };
+
+    console.log("💾 Saving job to database...");
+
+    // Save job
+    await job.save();
+
+    console.log("✅ Job saved successfully");
+
+    return res.status(200).json({
+      success: true,
+      message: "Proof recorded successfully. Dispute period started.",
+      job: {
+        id: job._id,
+        status: job.status,
+        disputePeriod: job.disputePeriod,
+        proofOfWork: job.proofOfWork,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error recording proof:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to record proof submission",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Get Proof of Work Details (For Both Company & Worker)
+// ============================================================================
+
+const getProofOfWork = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    console.log("📋 Fetching proof for job:", jobId);
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      console.log("❌ Job not found");
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    console.log("📊 Job details:", {
+      id: job._id,
+      status: job.status,
+      hasProofOfWork: !!job.proofOfWork,
+      proofAccountAddress: job.proofOfWork?.accountAddress,
+    });
+
+    // Check if proof exists
+    if (!job.proofOfWork || !job.proofOfWork.accountAddress) {
+      console.log("❌ No proof of work found");
+      return res.status(404).json({
+        success: false,
+        message: "No proof of work submitted yet",
+        debug: {
+          jobId: job._id,
+          status: job.status,
+          hasProofField: !!job.proofOfWork,
+          proofDetails: job.proofOfWork,
+        },
+      });
+    }
+
+    // Return proof details
+    const proofDetails = {
+      accountAddress: job.proofOfWork.accountAddress,
+      txSignature: job.proofOfWork.txSignature,
+      proofType: job.proofOfWork.proofType,
+      proofData: job.proofOfWork.proofData,
+      submittedAt: job.proofOfWork.submittedAt,
+      isVerified: job.proofOfWork.isVerified,
+      disputePeriod: job.disputePeriod,
+      workerWallet: job.assignedWorker,
+      workerName: job.workerName,
+    };
+
+    console.log("✅ Proof found, returning details");
+
+    return res.status(200).json({
+      success: true,
+      proof: proofDetails,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching proof:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch proof of work",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Check and Update Expired Dispute Periods
+// ============================================================================
+
+const updateDisputePeriodStatus = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Find all jobs with active dispute periods that have expired
+    const expiredJobs = await Job.find({
+      "disputePeriod.isActive": true,
+      "disputePeriod.isExpired": false,
+      "disputePeriod.endsAt": { $lte: now },
+    });
+
+    if (expiredJobs.length > 0) {
+      for (const job of expiredJobs) {
+        job.disputePeriod.isActive = false;
+        job.disputePeriod.isExpired = true;
+
+        // Update job status to completed if no dispute was raised
+        if (job.status === "pending_verification") {
+          job.status = "completed";
+        }
+
+        await job.save();
+        console.log(`✅ Dispute period expired for job ${job._id}`);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Dispute periods updated",
+      expiredCount: expiredJobs.length,
+    });
+  } catch (error) {
+    console.error("❌ Error updating dispute periods:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update dispute periods",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Mark Fund Transfer as Complete
+// ============================================================================
+
+const markFundTransferred = async (req, res) => {
+  try {
+    const { jobId, transactionSignature, amount } = req.body;
+
+    if (!jobId || !transactionSignature) {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID and transaction signature are required",
+      });
+    }
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Check if dispute period has expired
+    if (job.disputePeriod.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot transfer funds while dispute period is active",
+      });
+    }
+
+    job.fundTransfer = {
+      isTransferred: true,
+      transferredAt: new Date(),
+      transactionSignature: transactionSignature,
+      amount: amount,
+    };
+
+    job.status = "completed";
+
+    await job.save();
+
+    console.log(`✅ Funds transferred for job ${jobId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Fund transfer recorded successfully",
+      job: {
+        id: job._id,
+        status: job.status,
+        fundTransfer: job.fundTransfer,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error marking fund transfer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark fund transfer",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Get Worker's In-Progress Jobs
+// ============================================================================
+
+const getWorkerInProgressJobs = async (req, res) => {
+  try {
+    const workerWallet = req.user.walletAddress;
+
+    const jobs = await Job.find({
+      assignedWorker: workerWallet,
+      status: "in_progress",
+    }).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      jobs: jobs,
+      count: jobs.length,
+    });
+  } catch (error) {
+    console.error("Error fetching in-progress jobs:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch in-progress jobs",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Get Worker's Completed Jobs
+// ============================================================================
+
+const getWorkerCompletedJobs = async (req, res) => {
+  try {
+    const workerWallet = req.user.walletAddress;
+
+    const jobs = await Job.find({
+      assignedWorker: workerWallet,
+      status: { $in: ["pending_verification", "completed"] },
+    }).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      jobs: jobs,
+      count: jobs.length,
+    });
+  } catch (error) {
+    console.error("Error fetching completed jobs:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch completed jobs",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Export all functions
+// ============================================================================
+
 export {
   createJob,
   getAllJobs,
@@ -640,5 +1303,13 @@ export {
   approveWorkerApplication,
   updateJobStatus,
   getWorkerJobs,
-  getCompanyStats
+  getCompanyStats,
+  generateJobOTP,
+  verifyJobOTP,
+  recordProofSubmission, // ⭐ NEW - Replaces submitProofOfWork
+  getProofOfWork,
+  updateDisputePeriodStatus,
+  markFundTransferred,
+  getWorkerInProgressJobs,
+  getWorkerCompletedJobs,
 };

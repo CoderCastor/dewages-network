@@ -10,6 +10,11 @@ import {
   updateJobStatus,
   getWorkerJobs,
   getCompanyStats,
+  generateJobOTP,
+  verifyJobOTP,
+  getWorkerInProgressJobs,
+  getProofOfWork,
+  recordProofSubmission,
 } from "../controller/jobController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { Job } from "../model/jobModel.js";
@@ -433,6 +438,7 @@ jobRouter.post("/apply", authMiddleware, async (req, res) => {
 // Get all applications for a job
 jobRouter.get("/:jobId/applications", authMiddleware, getJobApplications);
 
+
 // POST /api/job/:jobId/apply
 // Worker applies for a job (alternative endpoint)
 jobRouter.post("/:jobId/apply", authMiddleware, applyForJob);
@@ -444,5 +450,22 @@ jobRouter.patch("/:jobId/status", authMiddleware, updateJobStatus);
 // GET /api/job/:jobId
 // Get single job details - MUST BE LAST
 jobRouter.get("/:jobId", getJobById);
+
+
+// POST /api/job/generate-otp - Generate OTP for start or end
+jobRouter.post("/generate-otp", authMiddleware, generateJobOTP);
+
+// POST /api/job/verify-otp - Verify OTP
+jobRouter.post("/verify-otp", authMiddleware, verifyJobOTP);
+
+// GET /api/job/worker/in-progress - Get worker's in-progress jobs
+jobRouter.get("/worker/in-progress", authMiddleware, getWorkerInProgressJobs);
+
+
+// POST /api/job/submit-proof - NEW ROUTE
+jobRouter.post("/proof-submitted", authMiddleware, recordProofSubmission);
+
+// GET /api/job/:jobId/proof
+jobRouter.get("/:jobId/proof", authMiddleware, getProofOfWork);
 
 export default jobRouter;

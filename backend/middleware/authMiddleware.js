@@ -3,10 +3,10 @@ import { config } from "../config.js";
 
 const authMiddleware = (req, res, next) => {
   try {
-    // console.log(req.headers.authorization)
+   
     // Get token from header
     const authHeader = req.headers.authorization;
-    console.log(authHeader)
+    
     const token = (authHeader && authHeader.split(" ")[1]) || req.body.token || req.headers["x-access-token"] 
 
 
