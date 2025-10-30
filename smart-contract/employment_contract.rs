@@ -66,7 +66,7 @@ pub mod employment_platform {
         job.requirements = requirements;
         job.status = JobStatus::Open;
         job.created_at = Clock::get()?.unix_timestamp;
-        job.worker = None; // No worker yet
+        job.worker = None;
         job.started_at = None;
         job.completed_at = None;
         job.dispute_deadline = None;
@@ -84,7 +84,7 @@ pub mod employment_platform {
         // Initialize escrow
         escrow.job = job.key();
         escrow.employer = ctx.accounts.employer.key();
-        escrow.worker = Pubkey::default(); // Will be set when worker assigned
+        escrow.worker = Pubkey::default();
         escrow.amount = payment_amount;
         escrow.is_locked = true;
         escrow.created_at = Clock::get()?.unix_timestamp;
@@ -97,21 +97,15 @@ pub mod employment_platform {
         let job = &mut ctx.accounts.job;
         let escrow = &mut ctx.accounts.escrow;
 
-        // Verify job is open
         require!(job.status == JobStatus::Open, ErrorCode::JobNotOpen);
-
-        // Verify the signer is the employer who posted the job
         require!(
             job.employer == ctx.accounts.employer.key(),
             ErrorCode::UnauthorizedEmployer
         );
 
-        // Assign worker to job
         job.worker = Some(ctx.accounts.worker.key());
         job.status = JobStatus::InProgress;
         job.started_at = Some(Clock::get()?.unix_timestamp);
-
-        // Update escrow with worker info
         escrow.worker = ctx.accounts.worker.key();
 
         Ok(())
@@ -136,12 +130,10 @@ pub mod employment_platform {
             ErrorCode::UnauthorizedWorker
         );
 
-        // Update job status and set dispute deadline (3 days)
         job.status = JobStatus::PendingVerification;
         job.completed_at = Some(Clock::get()?.unix_timestamp);
         job.dispute_deadline = Some(Clock::get()?.unix_timestamp + 3 * 24 * 60 * 60);
 
-        // Save proof of work
         proof_of_work.job = job.key();
         proof_of_work.worker = ctx.accounts.worker.key();
         proof_of_work.proof_type = proof_type;
@@ -155,53 +147,43 @@ pub mod employment_platform {
 
     /// STEP 4: Auto-release payment after dispute period (if no dispute)
     pub fn release_payment(ctx: Context<ReleasePayment>) -> Result<()> {
-        // Verify job is in verification state
         require!(
             ctx.accounts.job.status == JobStatus::PendingVerification,
             ErrorCode::InvalidJobStatus
         );
 
-        // Verify dispute period has passed (3 days)
         let current_time = Clock::get()?.unix_timestamp;
         require!(
             ctx.accounts.job.dispute_deadline.unwrap() < current_time,
             ErrorCode::DisputePeriodActive
         );
 
-        // Store values BEFORE creating mutable borrows
         let escrow_amount = ctx.accounts.escrow.amount;
-        let job_key = ctx.accounts.job.key();
-        let bump = ctx.bumps.escrow;
 
-        // Create PDA seeds
-        let seeds = &[b"escrow", job_key.as_ref(), &[bump]];
-        let signer_seeds = &[&seeds[..]];
+        // ✅ FIX: Use try_borrow_mut_lamports for AccountInfo types
+        **ctx
+            .accounts
+            .escrow
+            .to_account_info()
+            .try_borrow_mut_lamports()? -= escrow_amount;
+        **ctx.accounts.worker.try_borrow_mut_lamports()? += escrow_amount;
 
-        // Create the CPI context
-        let cpi_context = CpiContext::new_with_signer(
-            ctx.accounts.system_program.to_account_info(),
-            anchor_lang::system_program::Transfer {
-                from: ctx.accounts.escrow.to_account_info(),
-                to: ctx.accounts.worker.to_account_info(),
-            },
-            signer_seeds,
-        );
-
-        // Execute the transfer
-        anchor_lang::system_program::transfer(cpi_context, escrow_amount)?;
-
-        // Now create mutable borrows for updates
         let job = &mut ctx.accounts.job;
         let escrow = &mut ctx.accounts.escrow;
 
-        // Update job status
         job.status = JobStatus::Completed;
         escrow.is_locked = false;
+        escrow.amount = 0;
 
-        // Update user statistics
         ctx.accounts.employer_profile.total_jobs += 1;
         ctx.accounts.worker_profile.total_jobs += 1;
         ctx.accounts.worker_profile.total_earnings += escrow_amount;
+
+        msg!(
+            "💰 Payment released: {} lamports to {}",
+            escrow_amount,
+            ctx.accounts.worker.key()
+        );
 
         Ok(())
     }
@@ -215,22 +197,17 @@ pub mod employment_platform {
         let job = &mut ctx.accounts.job;
         let dispute = &mut ctx.accounts.dispute;
 
-        // Verify job is in verification state
         require!(
             job.status == JobStatus::PendingVerification,
             ErrorCode::InvalidJobStatus
         );
-
-        // Verify dispute is within deadline
         require!(
             Clock::get()?.unix_timestamp <= job.dispute_deadline.unwrap(),
             ErrorCode::DisputePeriodExpired
         );
 
-        // Change job status to disputed (funds stay locked in escrow)
         job.status = JobStatus::Disputed;
 
-        // Create dispute record
         dispute.job = job.key();
         dispute.employer = ctx.accounts.employer.key();
         dispute.worker = job.worker.unwrap();
@@ -265,85 +242,49 @@ pub mod employment_platform {
             ErrorCode::DisputeAlreadyResolved
         );
 
-        // Store values BEFORE creating mutable borrows
         let escrow_amount = ctx.accounts.escrow.amount;
-        let job_key = ctx.accounts.job.key();
-        let bump = ctx.bumps.escrow;
 
-        // Create PDA seeds
-        let seeds = &[b"escrow", job_key.as_ref(), &[bump]];
-        let signer_seeds = &[&seeds[..]];
-
-        // Release payment based on resolution
+        // ✅ FIX: Use try_borrow_mut_lamports for all resolutions
         match resolution {
             DisputeResolution::FavorWorker => {
-                // Give full payment to worker
-                let cpi_context = CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.escrow.to_account_info(),
-                        to: ctx.accounts.worker.to_account_info(),
-                    },
-                    signer_seeds,
-                );
-                anchor_lang::system_program::transfer(cpi_context, escrow_amount)?;
-
-                // Update profiles
+                **ctx
+                    .accounts
+                    .escrow
+                    .to_account_info()
+                    .try_borrow_mut_lamports()? -= escrow_amount;
+                **ctx.accounts.worker.try_borrow_mut_lamports()? += escrow_amount;
                 ctx.accounts.worker_profile.total_earnings += escrow_amount;
                 ctx.accounts.worker_profile.total_jobs += 1;
                 ctx.accounts.employer_profile.total_jobs += 1;
             }
             DisputeResolution::FavorEmployer => {
-                // Refund to employer
-                let cpi_context = CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.escrow.to_account_info(),
-                        to: ctx.accounts.employer.to_account_info(),
-                    },
-                    signer_seeds,
-                );
-                anchor_lang::system_program::transfer(cpi_context, escrow_amount)?;
+                **ctx
+                    .accounts
+                    .escrow
+                    .to_account_info()
+                    .try_borrow_mut_lamports()? -= escrow_amount;
+                **ctx.accounts.employer.try_borrow_mut_lamports()? += escrow_amount;
             }
             DisputeResolution::Split => {
-                // Split 50-50
                 let half = escrow_amount / 2;
                 let remainder = escrow_amount - half;
-
-                // Transfer half to worker
-                let cpi_context_worker = CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.escrow.to_account_info(),
-                        to: ctx.accounts.worker.to_account_info(),
-                    },
-                    signer_seeds,
-                );
-                anchor_lang::system_program::transfer(cpi_context_worker, half)?;
-
-                // Transfer remainder to employer
-                let cpi_context_employer = CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.escrow.to_account_info(),
-                        to: ctx.accounts.employer.to_account_info(),
-                    },
-                    signer_seeds,
-                );
-                anchor_lang::system_program::transfer(cpi_context_employer, remainder)?;
-
+                **ctx
+                    .accounts
+                    .escrow
+                    .to_account_info()
+                    .try_borrow_mut_lamports()? -= escrow_amount;
+                **ctx.accounts.worker.try_borrow_mut_lamports()? += half;
+                **ctx.accounts.employer.try_borrow_mut_lamports()? += remainder;
                 ctx.accounts.worker_profile.total_earnings += half;
                 ctx.accounts.worker_profile.total_jobs += 1;
                 ctx.accounts.employer_profile.total_jobs += 1;
             }
         }
 
-        // Now create mutable borrows for updates
         let job = &mut ctx.accounts.job;
         let escrow = &mut ctx.accounts.escrow;
         let dispute = &mut ctx.accounts.dispute;
 
-        // Update dispute record
         dispute.status = match resolution {
             DisputeResolution::FavorWorker => DisputeStatus::ResolvedForWorker,
             DisputeResolution::FavorEmployer => DisputeStatus::ResolvedForEmployer,
@@ -354,6 +295,7 @@ pub mod employment_platform {
 
         job.status = JobStatus::Completed;
         escrow.is_locked = false;
+        escrow.amount = 0;
 
         Ok(())
     }
@@ -371,15 +313,31 @@ pub mod employment_platform {
         user_rating.review = review;
         user_rating.created_at = Clock::get()?.unix_timestamp;
 
-        // Prevent division by zero if this is the first job
         let total_jobs_before = target_profile.total_jobs;
         if total_jobs_before == 0 {
             target_profile.rating = rating as u64;
         } else {
             target_profile.rating =
                 ((target_profile.rating * total_jobs_before) + rating as u64) / (total_jobs_before);
-            // Note: total_jobs is updated in release_payment
         }
+
+        Ok(())
+    }
+
+    /// 🧪 TESTING ONLY: Skip dispute period by setting deadline to past
+    pub fn skip_dispute_period_for_testing(
+        ctx: Context<SkipDisputePeriodForTesting>,
+    ) -> Result<()> {
+        let admin_key = ADMIN_PUBKEY.parse::<Pubkey>().unwrap();
+        require!(
+            ctx.accounts.admin.key() == admin_key,
+            ErrorCode::UnauthorizedAdmin
+        );
+
+        let job = &mut ctx.accounts.job;
+        job.dispute_deadline = Some(Clock::get()?.unix_timestamp - 1);
+
+        msg!("🧪 TESTING: Dispute deadline skipped for job {}", job.key());
 
         Ok(())
     }
@@ -485,12 +443,12 @@ pub enum JobCategory {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum JobStatus {
-    Open,                // Job posted, payment locked, waiting for worker assignment
-    InProgress,          // Worker assigned and work started
-    PendingVerification, // Proof submitted, 3-day dispute period active
-    Completed,           // Payment released or dispute resolved
-    Disputed,            // Dispute raised, funds frozen
-    Cancelled,           // Job cancelled
+    Open,
+    InProgress,
+    PendingVerification,
+    Completed,
+    Disputed,
+    Cancelled,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
@@ -512,9 +470,9 @@ pub enum DisputeStatus {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum DisputeResolution {
-    FavorWorker,   // Give full payment to worker
-    FavorEmployer, // Refund to employer
-    Split,         // Split 50-50
+    FavorWorker,
+    FavorEmployer,
+    Split,
 }
 
 // Context structs
@@ -701,6 +659,14 @@ pub struct RateUser<'info> {
     pub rater: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SkipDisputePeriodForTesting<'info> {
+    #[account(mut)]
+    pub job: Account<'info, Job>,
+
+    pub admin: Signer<'info>,
 }
 
 // Error codes
