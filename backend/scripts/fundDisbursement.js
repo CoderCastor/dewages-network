@@ -3,6 +3,7 @@ import { sha256 } from "js-sha256";
 import mongoose from "mongoose";
 import fs from "fs";
 import { Job } from "../model/jobModel.js";
+import { WorkerProfile } from "../model/workerModel.js"; // ✅ ADD THIS IMPORT
 
 const config = {
   programId: "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ",
@@ -37,10 +38,7 @@ function deriveUserProfilePDA(walletAddress) {
 }
 
 // ✅ Calculate correct Anchor instruction discriminator
-// The contract uses snake_case: pub fn release_payment
 function getInstructionDiscriminator(instructionName) {
-  // Anchor converts snake_case to the discriminator
-  // For "release_payment", it hashes "global:release_payment"
   const preimage = `global:${instructionName}`;
   console.log(`[Discriminator] Pre-image: ${preimage}`);
   
@@ -55,7 +53,6 @@ function getInstructionDiscriminator(instructionName) {
 
 // ✅ Create raw instruction for release_payment
 function createReleasePaymentInstruction(accounts) {
-  // Use snake_case name as in contract
   const discriminator = getInstructionDiscriminator("release_payment");
 
   return new TransactionInstruction({
@@ -138,6 +135,7 @@ async function disburseFundsForJob(job, connection) {
     console.log(`📝 Transaction Signature: ${txSignature}`);
     console.log(`🔗 Explorer: https://explorer.solana.com/tx/${txSignature}?cluster=devnet`);
 
+    // ✅ UPDATE JOB IN MONGODB
     console.log("\n[Database] Updating job in MongoDB...");
     job.status = "completed";
     job.fundTransfer = {
@@ -152,6 +150,30 @@ async function disburseFundsForJob(job, connection) {
     await job.save();
     console.log("✅ [Database] Job updated successfully");
     console.log(`💰 Amount Transferred: ${job.paymentAmount / 1_000_000_000} SOL`);
+
+    // ✅ UPDATE WORKER PROFILE IN MONGODB
+    console.log("\n[Database] Updating worker profile in MongoDB...");
+    
+    const workerProfile = await WorkerProfile.findOne({ 
+      walletAddress: assignedWorker 
+    });
+
+    if (workerProfile) {
+      // Increment job counters and earnings
+      workerProfile.totalJobs = (workerProfile.totalJobs || 0) + 1;
+      workerProfile.completedJobs = (workerProfile.completedJobs || 0) + 1;
+      workerProfile.totalEarnings = (workerProfile.totalEarnings || 0) + job.paymentAmount;
+      
+      await workerProfile.save();
+      
+      console.log("✅ [Database] Worker profile updated successfully");
+      console.log(`   📊 Total Jobs: ${workerProfile.totalJobs}`);
+      console.log(`   ✅ Completed Jobs: ${workerProfile.completedJobs}`);
+      console.log(`   💰 Total Earnings: ${workerProfile.totalEarnings / 1_000_000_000} SOL`);
+    } else {
+      console.log("⚠️  [Warning] Worker profile not found in MongoDB");
+      console.log(`   Worker wallet: ${assignedWorker}`);
+    }
 
     return { success: true, txSignature };
   } catch (error) {
