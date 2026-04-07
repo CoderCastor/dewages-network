@@ -1,0 +1,29 @@
+version: 'v1'
+services:
+  mongodb: 
+    image: mongo
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes: 
+      - mongodb_data:/data/db
+
+  dewages-network-backend:
+    build: ./backend/
+    container_name: dewages-network-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_CONNECTION_STRING=mongodb://mongodb:27017/mydb
+      - PROGRAM_ID=6p2Ni8ZJ1mxYKvPd665tWKcNFEiFbc2cBhwf7Pmq1fJu
+      - JWT_SECRET=qwertyuiopasdfghjklzxcvbnm 
+      - FRONTEND_DOMAIN=http://localhost:5173
+      - PORT=8000
+
+
+volumes:
+  mongodb_data:
+
+    

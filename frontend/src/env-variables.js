@@ -7,4 +7,5 @@
 
 export const RPC_URL ="http://127.0.0.1:8899";
 export const BACKEND_URL = "http://localhost:8000/v1"
-export const PROGRAM_ID = "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+// export const PROGRAM_ID = "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+export const PROGRAM_ID = "6p2Ni8ZJ1mxYKvPd665tWKcNFEiFbc2cBhwf7Pmq1fJu"
