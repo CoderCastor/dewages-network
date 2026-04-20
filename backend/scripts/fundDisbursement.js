@@ -4,16 +4,18 @@ import mongoose from "mongoose";
 import fs from "fs";
 import { Job } from "../model/jobModel.js";
 import { WorkerProfile } from "../model/workerModel.js"; // ✅ ADD THIS IMPORT
+import { config } from "../config.js";
 
-const config = {
-  programId: "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ",
-  rpcUrl: "http://127.0.0.1:8899",
-  mongoUri: "mongodb://localhost:27017/dewages-network-db",
-};
+// const config = {
+//   programId: "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ",
+//   rpcUrl: "http://127.0.0.1:8899",
+//   // mongoUri: "mongodb://localhost:27017/dewages-network-db",
+//   mongoUri: config.databaseUrl ,
+// };
 
 const PROGRAM_ID = new PublicKey(config.programId);
 const RPC_URL = config.rpcUrl;
-const MONGODB_URI = config.mongoUri;
+const MONGODB_URI = config.databaseUrl;
 
 console.log("[Init] Loading relayer keypair");
 const keypairPath = process.env.HOME + "/.config/solana/id.json";

@@ -23,6 +23,57 @@ const PROGRAM_ID = programId;
 const RPC_URL = rpcUrl;
 
 // ============================================================================
+// Utility: Wait for Solana transaction confirmation
+// Polls every 2s up to maxRetries times before giving up
+// ============================================================================
+
+const waitForConfirmation = async (
+  signature,
+  maxRetries = 10,
+  intervalMs = 2000
+) => {
+  const connection = new Connection(RPC_URL, "confirmed");
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(
+      `⏳ Checking tx confirmation attempt ${attempt}/${maxRetries}: ${signature}`
+    );
+
+    try {
+      const { value } = await connection.getSignatureStatus(signature);
+
+      if (value?.err) {
+        // Tx landed on-chain but execution failed — no point retrying
+        throw new Error(
+          `Transaction failed on-chain: ${JSON.stringify(value.err)}`
+        );
+      }
+
+      if (
+        value?.confirmationStatus === "confirmed" ||
+        value?.confirmationStatus === "finalized"
+      ) {
+        console.log(`✅ Tx confirmed after ${attempt} attempt(s)`);
+        return true;
+      }
+    } catch (err) {
+      // Re-throw hard failures (on-chain errors), swallow transient RPC errors
+      if (err.message?.startsWith("Transaction failed on-chain")) {
+        throw err;
+      }
+      console.warn(`⚠️ RPC error on attempt ${attempt}:`, err.message);
+    }
+
+    // Wait before next poll
+    await new Promise((res) => setTimeout(res, intervalMs));
+  }
+
+  // Exhausted all retries
+  console.warn(`⚠️ Tx not confirmed after ${maxRetries} attempts: ${signature}`);
+  return false;
+};
+
+// ============================================================================
 // Create Job (After blockchain transaction)
 // ============================================================================
 
@@ -470,6 +521,8 @@ const getJobApplications = async (req, res) => {
 
 // ============================================================================
 // Approve Worker Application
+// ── Only change vs original: waitForConfirmation() is called BEFORE any
+//   MongoDB writes, so the DB is never updated unless the tx is on-chain.
 // ============================================================================
 
 const approveWorkerApplication = async (req, res) => {
@@ -484,6 +537,40 @@ const approveWorkerApplication = async (req, res) => {
         message: "Missing required fields: jobId and workerWallet",
       });
     }
+
+    // ── FIX: Confirm the blockchain tx BEFORE touching MongoDB ───────────────
+    if (transactionSignature) {
+      console.log(
+        `⏳ Waiting for blockchain confirmation: ${transactionSignature}`
+      );
+
+      let confirmed = false;
+      try {
+        confirmed = await waitForConfirmation(transactionSignature);
+      } catch (chainErr) {
+        // Hard on-chain failure (tx reverted etc.) — don't update DB
+        console.error("❌ On-chain tx failed:", chainErr.message);
+        return res.status(400).json({
+          success: false,
+          retryable: false,
+          message: "Blockchain transaction failed: " + chainErr.message,
+        });
+      }
+
+      if (!confirmed) {
+        // Tx still propagating — tell frontend to retry
+        console.warn(
+          `⚠️ Tx not confirmed after retries: ${transactionSignature}`
+        );
+        return res.status(202).json({
+          success: false,
+          retryable: true,
+          message:
+            "Blockchain transaction is still processing. Please retry in a few seconds.",
+        });
+      }
+    }
+    // ── End fix ──────────────────────────────────────────────────────────────
 
     const job = await Job.findById(jobId);
 
@@ -954,7 +1041,8 @@ const verifyJobOTP = async (req, res) => {
 
 const recordProofSubmission = async (req, res) => {
   try {
-    const { jobId, txSignature, proofAccountAddress, proofType, proofData } = req.body;
+    const { jobId, txSignature, proofAccountAddress, proofType, proofData } =
+      req.body;
 
     console.log("📝 Recording proof submission:", {
       jobId,
@@ -966,7 +1054,8 @@ const recordProofSubmission = async (req, res) => {
     if (!jobId || !txSignature || !proofAccountAddress) {
       return res.status(400).json({
         success: false,
-        message: "Job ID, transaction signature, and proof account address are required",
+        message:
+          "Job ID, transaction signature, and proof account address are required",
       });
     }
 
@@ -1306,7 +1395,7 @@ export {
   getCompanyStats,
   generateJobOTP,
   verifyJobOTP,
-  recordProofSubmission, // ⭐ NEW - Replaces submitProofOfWork
+  recordProofSubmission,
   getProofOfWork,
   updateDisputePeriodStatus,
   markFundTransferred,

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { CompanyProfile } from "../model/companyModel.js";
 import { WorkerProfile } from "../model/workerModel.js";
 import { Job } from "../model/jobModel.js";
+import { config } from "../config.js";
 
 const PROGRAM_ID = new PublicKey(
   "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
@@ -11,7 +12,8 @@ const PROGRAM_ID = new PublicKey(
 async function verifyJobAccounts() {
   console.log("\n📋 JOB ACCOUNT VERIFICATION DIAGNOSTIC\n");
 
-  await mongoose.connect("mongodb://localhost:27017/dewages-network-db");
+  // await mongoose.connect("mongodb://localhost:27017/dewages-network-db");
+  await mongoose.connect(config.databaseUrl);
 
   // Get the job
   const job = await Job.findOne({}).sort({ createdAt: -1 });

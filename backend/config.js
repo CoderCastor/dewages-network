@@ -10,7 +10,6 @@ const _config = {
   frontendDomain: process.env.FRONTEND_DOMAIN,
   programId : process.env.PROGRAM_ID,
   rpcUrl : process.env.RPC_URL
-
 };
 
 export const config = Object.freeze(_config);

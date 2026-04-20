@@ -6,7 +6,8 @@ const MONGODB_URI = config.databaseUrl;
 
 async function updateDisputePeriodTo10Seconds() {
   try {
-    await mongoose.connect("mongodb://localhost:27017/dewages-network-db");
+    // await mongoose.connect("mongodb://localhost:27017/dewages-network-db");
+    await mongoose.connect(config.databaseUrl);
     console.log("✅ Connected to MongoDB");
 
     // Find jobs with active dispute periods

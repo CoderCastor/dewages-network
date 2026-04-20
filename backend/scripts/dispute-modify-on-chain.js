@@ -9,6 +9,7 @@ import {
 import { sha256 } from "js-sha256";
 import fs from "fs";
 import { Job } from "../model/jobModel.js";
+import { config } from "../config.js";
 
 const PROGRAM_ID = new PublicKey(
   "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
@@ -60,7 +61,8 @@ async function skipDisputePeriodOnChain() {
 
   // Connect to MongoDB
   console.log("\n[Database] Connecting to MongoDB...");
-  await mongoose.connect("mongodb://localhost:27017/dewages-network-db");
+  // await mongoose.connect("mongodb://localhost:27017/dewages-network-db");
+  await mongoose.connect(config.databaseUrl);
   console.log("✅ [Database] Connected to MongoDB");
 
   try {
