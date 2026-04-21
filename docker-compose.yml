@@ -17,10 +17,11 @@ services:
       - mongodb
     environment:
       - MONGO_CONNECTION_STRING=mongodb://mongodb:27017/mydb
-      - PROGRAM_ID=6p2Ni8ZJ1mxYKvPd665tWKcNFEiFbc2cBhwf7Pmq1fJu
+      - PROGRAM_ID=3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ
       - JWT_SECRET=qwertyuiopasdfghjklzxcvbnm 
       - FRONTEND_DOMAIN=http://localhost:5173
       - PORT=8000
+      - RPC_URL=http://127.0.0.1:8899
 
 
 volumes:

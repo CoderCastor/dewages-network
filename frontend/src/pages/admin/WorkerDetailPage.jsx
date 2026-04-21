@@ -27,7 +27,7 @@ import axios from "axios";
 // If using Solana Playground: Use the Program ID shown after deployment
 // If using local Anchor: Run 'anchor keys list' to get the correct ID
 const PROGRAM_ID = new PublicKey(
-  "6p2Ni8ZJ1mxYKvPd665tWKcNFEiFbc2cBhwf7Pmq1fJu"
+  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
 );
 
 // const PROGRAM_ID = new PublicKey(

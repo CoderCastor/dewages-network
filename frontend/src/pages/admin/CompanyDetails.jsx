@@ -24,7 +24,7 @@ import axios from "axios";
 
 // IMPORTANT: This must match your deployed program
 const PROGRAM_ID = new PublicKey(
-  "6p2Ni8ZJ1mxYKvPd665tWKcNFEiFbc2cBhwf7Pmq1fJu"
+  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
 );
 
 // Updated IDL matching the new smart contract
