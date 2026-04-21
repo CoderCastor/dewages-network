@@ -30,12 +30,14 @@ import {
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
+import CompanyOTPGenerator from "@/components/common/CompanyOTPGenerator";
 
 const JobCard = ({
   job,
   onClick,
   showApplications = false,
   onOTPGenerated,
+  onUpdate,
 }) => {
   const [generatingOTP, setGeneratingOTP] = useState(null);
   const [startOTP, setStartOTP] = useState(job.startJobOTP?.code || null);
@@ -324,10 +326,27 @@ const JobCard = ({
   // Render OTP Card
   const renderOTPCard = (otpType) => {
     const isStart = otpType === "start";
-    const otp = isStart ? startOTP : endOTP;
-    const expiryDate = isStart ? startOTPExpiry : endOTPExpiry;
-    const isUsed = isStart ? startOTPUsed : endOTPUsed;
-    const usedAt = isStart ? startOTPUsedAt : endOTPUsedAt;
+    
+    // For End OTP, use the CompanyOTPGenerator component
+    if (!isStart) {
+      return (
+        <CompanyOTPGenerator
+          job={job}
+          onOTPGenerated={(otp) => {
+            setEndOTP(otp.code);
+            setEndOTPExpiry(otp.expiresAt);
+            if (onOTPGenerated) onOTPGenerated(job._id, otp.code, "end");
+            if (onUpdate) onUpdate();
+          }}
+        />
+      );
+    }
+    
+    // Start OTP rendering logic remains the same
+    const otp = startOTP;
+    const expiryDate = startOTPExpiry;
+    const isUsed = startOTPUsed;
+    const usedAt = startOTPUsedAt;
     const isExpired = isOTPExpired(expiryDate);
     const isGenerating = generatingOTP === otpType;
 

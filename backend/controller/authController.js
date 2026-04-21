@@ -23,7 +23,7 @@ export const workerSignin = async (req, res) => {
     try {
       const isValid = nacl.sign.detached.verify(
         message,
-        new Uint8Array(signature.data),
+        new Uint8Array(signature.data ? signature.data : signature),
         new PublicKey(publicKey).toBytes()
       );
 

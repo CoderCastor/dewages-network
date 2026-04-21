@@ -27,6 +27,7 @@ import {
 import axios from "axios";
 import { BACKEND_URL } from "../env-variables";
 import toast from "react-hot-toast";
+import RatingModal from "../components/common/RatingModal";
 
 const JobDetailsModalWorker = ({
   isOpen,
@@ -44,6 +45,7 @@ const JobDetailsModalWorker = ({
     end: false,
   });
   const [disputeTimeRemaining, setDisputeTimeRemaining] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   // Calculate dispute period countdown
   useEffect(() => {
@@ -154,6 +156,46 @@ const JobDetailsModalWorker = ({
       return;
     }
 
+    // For end OTP, check if company is rated first
+    if (otpType === "end" && !job.employerRating) {
+      setShowRatingModal(true);
+      return;
+    }
+
+    await verifyOTP(otpType, otpCode);
+  };
+
+  const handleRatingSubmit = async (rating, review) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await axios.post(
+        `${BACKEND_URL}/job/rating/worker`,
+        {
+          jobId: job._id,
+          rating,
+          review,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Rating submitted successfully!");
+        // Now verify the OTP
+        const otpCode = otpInput.end.trim();
+        await verifyOTP("end", otpCode);
+      }
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      toast.error(error.response?.data?.message || "Failed to submit rating");
+    }
+  };
+
+  const verifyOTP = async (otpType, otpCode) => {
     setSubmittingOTP(otpType);
     const loadingToast = toast.loading(
       `Verifying ${otpType === "start" ? "Start Job" : "End Job"} OTP...`
@@ -335,19 +377,29 @@ const JobDetailsModalWorker = ({
     }
 
     return (
-      <button
-        onClick={() =>
-          setShowOTPInput((prev) => ({ ...prev, [otpType]: true }))
-        }
-        className={`w-full flex items-center justify-center space-x-2 py-3 px-4 ${
-          isStart
-            ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-            : "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
-        } text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg`}
-      >
-        <Key className="w-5 h-5" />
-        <span>Enter {isStart ? "Start" : "End"} Job OTP</span>
-      </button>
+      <>
+        <button
+          onClick={() =>
+            setShowOTPInput((prev) => ({ ...prev, [otpType]: true }))
+          }
+          className={`w-full flex items-center justify-center space-x-2 py-3 px-4 ${
+            isStart
+              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              : "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+          } text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg`}
+        >
+          <Key className="w-5 h-5" />
+          <span>Enter {isStart ? "Start" : "End"} Job OTP</span>
+        </button>
+
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          onSubmit={handleRatingSubmit}
+          targetName={job.companyName || "Company"}
+          targetType="company"
+        />
+      </>
     );
   };
 

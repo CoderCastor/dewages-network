@@ -58,7 +58,9 @@ export function StatefulButton() {
           const message = new TextEncoder().encode(
             "Signup into Dewages Network"
           );
-          const signature = await signMessage?.(message);
+          const signatureRaw = await signMessage?.(message);
+          // Convert Uint8Array → plain Array so JSON serialization preserves byte values
+          const signature = Array.from(signatureRaw);
 
           const response = await axios.post(
             `${BACKEND_URL}/worker/walletverify`,

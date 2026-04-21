@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import RatingModal from "@/components/common/RatingModal";
 import {
   MapPin,
   Clock,
@@ -44,16 +45,16 @@ const JobListingCard = ({
   const wallet = useWallet();
   const [submittingOTP, setSubmittingOTP] = useState(null);
   const [otpInput, setOtpInput] = useState({ start: "", end: "" });
-  const [showOTPInput, setShowOTPInput] = useState({
-    start: false,
-    end: false,
-  });
+  const [showOTPInput, setShowOTPInput] = useState({ start: false, end: false });
   const [showProofPopup, setShowProofPopup] = useState(false);
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
   const [disputeTimeRemaining, setDisputeTimeRemaining] = useState(null);
   const [proofOfWork, setProofOfWork] = useState(null);
   const [fetchedProof, setFetchedProof] = useState(false);
+  // Worker rating flow: show rating modal before allowing end OTP entry
+  const [showWorkerRatingModal, setShowWorkerRatingModal] = useState(false);
+  const [workerRatingDone, setWorkerRatingDone] = useState(!!job.employerRating);
 
   // Calculate dispute period countdown
   useEffect(() => {
@@ -426,7 +427,12 @@ const JobListingCard = ({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
+          if (!isStart && !workerRatingDone && !job.employerRating) {
+            // Must rate company before entering End OTP
+            setShowWorkerRatingModal(true);
+          } else {
+            setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
+          }
         }}
         className={`w-full flex items-center justify-center space-x-2 py-2 px-3 ${
           isStart
@@ -435,7 +441,13 @@ const JobListingCard = ({
         } text-white rounded-lg font-medium transition-all text-sm`}
       >
         <Key className="w-4 h-4" />
-        <span>Enter {isStart ? "Start" : "End"} OTP</span>
+        <span>
+          {isStart
+            ? "Enter Start OTP"
+            : workerRatingDone || job.employerRating
+            ? "Enter End OTP"
+            : "Rate Company & Enter End OTP"}
+        </span>
       </button>
     );
   };
@@ -763,6 +775,32 @@ const JobListingCard = ({
           )}
       </motion.div>
 
+      {/* Worker Rating Modal — shown before end OTP entry */}
+      {showWorkerRatingModal && (
+        <RatingModal
+          isOpen={showWorkerRatingModal}
+          onClose={() => {}} // no-op: rating is mandatory
+          onSubmit={async (rating, review) => {
+            const token = localStorage.getItem("token");
+            const response = await axios.post(
+              `${BACKEND_URL}/job/rating/worker`,
+              { jobId: job._id, rating, review },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!response.data.success) {
+              throw new Error(response.data.message || "Failed to submit rating");
+            }
+            toast.success("Rating submitted!");
+            setWorkerRatingDone(true);
+            setShowWorkerRatingModal(false);
+            // Now open the OTP input
+            setShowOTPInput((prev) => ({ ...prev, end: true }));
+          }}
+          targetName={job.companyName || "the Company"}
+          targetType="company"
+        />
+      )}
+
       {/* Proof of Work Popup */}
       <AnimatePresence>
         {showProofPopup && (
@@ -770,7 +808,8 @@ const JobListingCard = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+            style={{ zIndex: 9998 }}
             onClick={() => !submittingProof && setShowProofPopup(false)}
           >
             <motion.div

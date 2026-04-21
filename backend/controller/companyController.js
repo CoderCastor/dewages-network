@@ -54,6 +54,9 @@ const CompanySignupSchema = z.object({
 const verifyCompanyWallet = async (req, res) => {
   const { publicKey, signature } = req.body;
 
+  console.log("[Company Verify] Received publicKey:", publicKey);
+  console.log("[Company Verify] Received signature:", signature);
+
   // Validate public key format
   const walletSchema = z.object({
     pubkey: z.string().min(32),
@@ -62,6 +65,7 @@ const verifyCompanyWallet = async (req, res) => {
   const Zresult = walletSchema.safeParse({ pubkey: publicKey });
 
   if (!Zresult.success) {
+    console.log("[Company Verify] Validation failed:", Zresult.error);
     return res.status(400).json({
       message: "Invalid wallet address",
       errors: Zresult.error.format(),
@@ -69,63 +73,79 @@ const verifyCompanyWallet = async (req, res) => {
   }
 
   const message = new TextEncoder().encode("Signup into Dewages Network");
+  console.log("[Company Verify] Message to verify:", message);
 
   try {
     // Verify signature
+    console.log("[Company Verify] Starting signature verification...");
     const result = nacl.sign.detached.verify(
       message,
-      new Uint8Array(signature.data),
+      new Uint8Array(signature),
       new PublicKey(publicKey).toBytes()
     );
 
+    console.log("[Company Verify] Signature verification result:", result);
+
     if (!result) {
+      console.log("[Company Verify] Signature verification failed - incorrect signature");
       return res.status(411).json({
         message: "Incorrect signature",
       });
     }
-  } catch (e) {
-    return res.status(411).json({
-      message: "Failed to validate signature",
+
+    console.log("[Company Verify] Signature verified successfully, checking database...");
+
+    // Check if company already exists
+    const existingCompany = await CompanyProfile.findOne({
+      walletAddress: publicKey,
     });
-  }
 
-  // Check if company already exists
-  const existingCompany = await CompanyProfile.findOne({
-    walletAddress: publicKey,
-  });
+    console.log("[Company Verify] Existing company:", existingCompany);
 
-  if (existingCompany) {
-    if (existingCompany.isActive) {
-      return res.json({
-        message: "Company already exists with this wallet.",
-        code: 403,
-      });
+    if (existingCompany) {
+      if (existingCompany.isActive) {
+        console.log("[Company Verify] Company already active");
+        return res.json({
+          message: "Company already exists with this wallet.",
+          code: 403,
+        });
+      } else {
+        // Existing but inactive
+        console.log("[Company Verify] Company exists but inactive, generating token");
+        const token = jwt.sign(
+          {
+            companyId: existingCompany._id,
+            publicKey,
+          },
+          config.jwtSecret
+        );
+        return res.json({ token });
+      }
     } else {
-      // Existing but inactive
+      // No company exists -> create one
+      console.log("[Company Verify] Creating new company profile");
+      const newCompany = await CompanyProfile.create({
+        walletAddress: publicKey,
+      });
+
+      console.log("[Company Verify] New company created:", newCompany._id);
+
       const token = jwt.sign(
         {
-          companyId: existingCompany._id,
+          companyId: newCompany._id,
           publicKey,
         },
         config.jwtSecret
       );
+
       return res.json({ token });
     }
-  } else {
-    // No company exists -> create one
-    const newCompany = await CompanyProfile.create({
-      walletAddress: publicKey,
+  } catch (e) {
+    console.error("[Company Verify] Error:", e);
+    return res.status(411).json({
+      message: "Failed to validate signature",
+      error: e.message,
     });
-
-    const token = jwt.sign(
-      {
-        companyId: newCompany._id,
-        publicKey,
-      },
-      config.jwtSecret
-    );
-
-    return res.json({ token });
   }
 };
 

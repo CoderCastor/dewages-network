@@ -16,6 +16,11 @@ import {
   getProofOfWork,
   recordProofSubmission,
 } from "../controller/jobController.js";
+import {
+  submitCompanyRating,
+  submitWorkerRating,
+  checkRatingStatus,
+} from "../controller/ratingController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { Job } from "../model/jobModel.js";
 import { CompanyProfile } from "../model/companyModel.js";
@@ -467,5 +472,18 @@ jobRouter.post("/proof-submitted", authMiddleware, recordProofSubmission);
 
 // GET /api/job/:jobId/proof
 jobRouter.get("/:jobId/proof", authMiddleware, getProofOfWork);
+
+// ============================================================================
+// Rating Routes
+// ============================================================================
+
+// POST /api/job/rating/company - Company rates worker
+jobRouter.post("/rating/company", authMiddleware, submitCompanyRating);
+
+// POST /api/job/rating/worker - Worker rates company
+jobRouter.post("/rating/worker", authMiddleware, submitWorkerRating);
+
+// GET /api/job/:jobId/rating-status - Check rating status
+jobRouter.get("/:jobId/rating-status", authMiddleware, checkRatingStatus);
 
 export default jobRouter;

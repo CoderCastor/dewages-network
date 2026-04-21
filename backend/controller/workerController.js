@@ -29,7 +29,7 @@ const verifyWorkerWallet = async (req, res) => {
   try {
     const result = nacl.sign.detached.verify(
       message,
-      new Uint8Array(signature.data),
+      new Uint8Array(signature),
       new PublicKey(publicKey).toBytes()
     );
 
@@ -39,7 +39,7 @@ const verifyWorkerWallet = async (req, res) => {
       });
     }
   } catch (e) {
-    res.status(411).json({
+    return res.status(411).json({
       message: "Failed to validate signature",
     });
   }
