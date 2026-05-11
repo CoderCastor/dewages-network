@@ -7,8 +7,8 @@ import { WorkerProfile } from "../model/workerModel.js"; // ✅ ADD THIS IMPORT
 import { config } from "../config.js";
 
 // const config = {
-//   programId: "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ",
-//   rpcUrl: "http://127.0.0.1:8899",
+//   programId: "4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM",
+//   rpcUrl: "https://devnet.helius-rpc.com/?api-key=2ac5b659-b819-400e-990c-628e1b2582e9",
 //   // mongoUri: "mongodb://localhost:27017/dewages-network-db",
 //   mongoUri: config.databaseUrl ,
 // };
@@ -43,13 +43,13 @@ function deriveUserProfilePDA(walletAddress) {
 function getInstructionDiscriminator(instructionName) {
   const preimage = `global:${instructionName}`;
   console.log(`[Discriminator] Pre-image: ${preimage}`);
-  
+
   const hash = sha256(Buffer.from(preimage));
   const discriminator = Buffer.from(hash, 'hex').slice(0, 8);
-  
+
   console.log(`[Discriminator] SHA256: ${hash}`);
   console.log(`[Discriminator] First 8 bytes: ${discriminator.toString('hex')}`);
-  
+
   return discriminator;
 }
 
@@ -106,30 +106,30 @@ async function disburseFundsForJob(job, connection) {
       employerProfile: employerProfilePDA,
       workerProfile: workerProfilePDA,
     };
-    
+
     console.log("[Prepare] ✅ All accounts prepared");
 
     console.log("\n[Blockchain] Creating raw transaction");
-    
+
     console.log("[Blockchain] Fetching recent blockhash...");
     const { blockhash } = await connection.getLatestBlockhash();
-    
+
     console.log("[Blockchain] Creating release_payment instruction...");
     const instruction = createReleasePaymentInstruction(accounts);
-    
+
     console.log("[Blockchain] Building transaction...");
     const transaction = new Transaction({
       recentBlockhash: blockhash,
       feePayer: RELAYER_KEYPAIR.publicKey,
     });
     transaction.add(instruction);
-    
+
     console.log("[Blockchain] Signing transaction...");
     transaction.sign(RELAYER_KEYPAIR);
-    
+
     console.log("[Blockchain] Sending transaction to Solana...");
     const txSignature = await connection.sendRawTransaction(transaction.serialize());
-    
+
     console.log("[Blockchain] Confirming transaction...");
     await connection.confirmTransaction(txSignature, "confirmed");
 
@@ -155,9 +155,9 @@ async function disburseFundsForJob(job, connection) {
 
     // ✅ UPDATE WORKER PROFILE IN MONGODB
     console.log("\n[Database] Updating worker profile in MongoDB...");
-    
-    const workerProfile = await WorkerProfile.findOne({ 
-      walletAddress: assignedWorker 
+
+    const workerProfile = await WorkerProfile.findOne({
+      walletAddress: assignedWorker
     });
 
     if (workerProfile) {
@@ -165,9 +165,9 @@ async function disburseFundsForJob(job, connection) {
       workerProfile.totalJobs = (workerProfile.totalJobs || 0) + 1;
       workerProfile.completedJobs = (workerProfile.completedJobs || 0) + 1;
       workerProfile.totalEarnings = (workerProfile.totalEarnings || 0) + job.paymentAmount;
-      
+
       await workerProfile.save();
-      
+
       console.log("✅ [Database] Worker profile updated successfully");
       console.log(`   📊 Total Jobs: ${workerProfile.totalJobs}`);
       console.log(`   ✅ Completed Jobs: ${workerProfile.completedJobs}`);
@@ -181,12 +181,12 @@ async function disburseFundsForJob(job, connection) {
   } catch (error) {
     console.error("\n❌ [Error] Failed to disburse funds for this job");
     console.error("[Error Message]:", error.message);
-    
+
     if (error.logs) {
       console.error("\n[Program Logs]:");
       error.logs.forEach((log) => console.error(`  - ${log}`));
     }
-    
+
     return { success: false, error: error.message };
   }
 }
@@ -216,7 +216,7 @@ async function main() {
     console.log("\n[Database] Querying ALL jobs in database...");
     const allJobs = await Job.find({});
     console.log(`[Query] Found ${allJobs.length} total job(s) in database`);
-    
+
     if (allJobs.length === 0) {
       console.log("ℹ️  No jobs in database");
       await mongoose.disconnect();
@@ -288,7 +288,7 @@ async function main() {
 
     try {
       await mongoose.disconnect();
-    } catch (e) {}
+    } catch (e) { }
 
     process.exit(1);
   }

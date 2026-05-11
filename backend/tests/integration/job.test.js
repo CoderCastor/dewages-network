@@ -21,8 +21,8 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 process.env.JWT_SECRET = "test-jwt-secret-key-for-dewages-network";
 process.env.PORT = "8001";
 process.env.NODE_ENV = "test";
-process.env.PROGRAM_ID = "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ";
-process.env.RPC_URL = "http://127.0.0.1:8899";
+process.env.PROGRAM_ID = "4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM";
+process.env.RPC_URL = "https://devnet.helius-rpc.com/?api-key=2ac5b659-b819-400e-990c-628e1b2582e9";
 
 import { Job } from "../../model/jobModel.js";
 import { CompanyProfile } from "../../model/companyModel.js";

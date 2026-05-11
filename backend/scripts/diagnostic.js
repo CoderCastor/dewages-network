@@ -6,7 +6,7 @@ import { Job } from "../model/jobModel.js";
 import { config } from "../config.js";
 
 const PROGRAM_ID = new PublicKey(
-  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+  "4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM"
 );
 
 async function verifyJobAccounts() {

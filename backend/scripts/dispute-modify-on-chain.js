@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
-import { 
-  Connection, 
-  PublicKey, 
-  Keypair, 
+import {
+  Connection,
+  PublicKey,
+  Keypair,
   Transaction,
   TransactionInstruction
 } from "@solana/web3.js";
@@ -12,7 +12,7 @@ import { Job } from "../model/jobModel.js";
 import { config } from "../config.js";
 
 const PROGRAM_ID = new PublicKey(
-  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+  "4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM"
 );
 
 function getInstructionDiscriminator(instructionName) {
@@ -99,7 +99,7 @@ async function skipDisputePeriodOnChain() {
 
     // Connect to Solana
     console.log("\n[Blockchain] Connecting to Solana RPC...");
-    const connection = new Connection("http://127.0.0.1:8899", "confirmed");
+    const connection = new Connection("https://devnet.helius-rpc.com/?api-key=2ac5b659-b819-400e-990c-628e1b2582e9", "confirmed");
     console.log("✅ [Blockchain] Connected");
 
     // Create the instruction
@@ -139,7 +139,7 @@ async function skipDisputePeriodOnChain() {
     console.log("  TX:", txSignature);
     console.log("\nExplorer Link:");
     console.log(
-      `  https://explorer.solana.com/tx/${txSignature}?cluster=custom&customUrl=http://127.0.0.1:8899\n`
+      `  https://explorer.solana.com/tx/${txSignature}?cluster=custom&customUrl=https://devnet.helius-rpc.com/?api-key=2ac5b659-b819-400e-990c-628e1b2582e9\n`
     );
 
     console.log("🚀 Next Step:");
@@ -166,7 +166,7 @@ async function skipDisputePeriodOnChain() {
 
     try {
       await mongoose.disconnect();
-    } catch (e) {}
+    } catch (e) { }
 
     process.exit(1);
   }
