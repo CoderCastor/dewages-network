@@ -7,6 +7,7 @@ import {
   applyForJob,
   getJobApplications,
   approveWorkerApplication,
+  rejectWorkerApplication,
   updateJobStatus,
   getWorkerJobs,
   getCompanyStats,
@@ -15,12 +16,16 @@ import {
   getWorkerInProgressJobs,
   getProofOfWork,
   recordProofSubmission,
+  getWorkerProfile,
+  getCompanyDisputedJobs,
+  getWorkerDisputedJobs,
 } from "../controller/jobController.js";
 import {
   submitCompanyRating,
   submitWorkerRating,
   checkRatingStatus,
 } from "../controller/ratingController.js";
+import { raiseDispute } from "../controller/disputeController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { Job } from "../model/jobModel.js";
 import { CompanyProfile } from "../model/companyModel.js";
@@ -55,6 +60,22 @@ jobRouter.get("/company/stats", authMiddleware, getCompanyStats);
 // POST /api/job/approve-worker
 // Approve worker application
 jobRouter.post("/approve-worker", authMiddleware, approveWorkerApplication);
+
+// POST /api/job/reject-worker
+// Reject a worker application
+jobRouter.post("/reject-worker", authMiddleware, rejectWorkerApplication);
+
+// GET /api/job/company/disputed
+// Get company's disputed jobs
+jobRouter.get("/company/disputed", authMiddleware, getCompanyDisputedJobs);
+
+// GET /api/job/worker/disputed
+// Get worker's disputed jobs
+jobRouter.get("/worker/disputed", authMiddleware, getWorkerDisputedJobs);
+
+// GET /api/job/worker/profile/:walletAddress
+// Get worker profile details
+jobRouter.get("/worker/profile/:walletAddress", authMiddleware, getWorkerProfile);
 
 // ============================================================================
 // Protected Routes - Worker
@@ -434,6 +455,13 @@ jobRouter.post("/apply", authMiddleware, async (req, res) => {
     });
   }
 });
+
+// ============================================================================
+// Dispute Routes
+// ============================================================================
+
+// POST /api/job/dispute/raise - Company or Worker raises a dispute
+jobRouter.post("/dispute/raise", authMiddleware, raiseDispute);
 
 // ============================================================================
 // Parameterized Routes - MUST BE LAST

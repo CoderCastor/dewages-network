@@ -2,27 +2,85 @@ import { config } from "../config.js";
 import jwt from "jsonwebtoken";
 import { WorkerProfile } from "../model/workerModel.js";
 import { CompanyProfile } from "../model/companyModel.js";
+import nacl from "tweetnacl";
+import bs58 from "bs58";
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const ADMIN_WALLET = "5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ";
+
+// In-memory nonce store (single admin – no DB needed)
+// nonce expires in 2 minutes
+const nonceStore = { value: null, expiresAt: 0 };
+
+/**
+ * GET /api/admin/nonce
+ * Returns a fresh nonce for the admin to sign.
+ */
+export function adminGetNonce(req, res) {
+  const nonce = `dewages-admin-login:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  nonceStore.value     = nonce;
+  nonceStore.expiresAt = Date.now() + 2 * 60 * 1000; // 2 min TTL
+  return res.status(200).json({ success: true, nonce });
+}
+
+/**
+ * POST /api/admin/login
+ * Body: { walletAddress: string, signature: number[] | Uint8Array }
+ *
+ * Flow:
+ *  1. walletAddress must be the admin wallet
+ *  2. Verifies the Ed25519 signature of the nonce using nacl
+ *  3. Issues a JWT containing walletAddress
+ */
 export function adminLogin(req, res) {
-  if (req.body.username == "codercastor" && req.body.password == "12345") {
+  try {
+    const { walletAddress, signature } = req.body;
+
+    if (!walletAddress || !signature) {
+      return res.status(400).json({ success: false, message: "walletAddress and signature are required" });
+    }
+
+    // 1. Check this is the admin wallet
+    if (walletAddress !== ADMIN_WALLET) {
+      return res.status(403).json({ success: false, message: "Unauthorized wallet address" });
+    }
+
+    // 2. Check nonce is still valid
+    if (!nonceStore.value || Date.now() > nonceStore.expiresAt) {
+      return res.status(400).json({ success: false, message: "Nonce expired or not requested. Call GET /admin/nonce first." });
+    }
+
+    // 3. Verify Ed25519 signature
+    const messageBytes = new TextEncoder().encode(nonceStore.value);
+    const sigBytes     = new Uint8Array(signature);
+    const pubkeyBytes  = bs58.decode(walletAddress);
+
+    const valid = nacl.sign.detached.verify(messageBytes, sigBytes, pubkeyBytes);
+    if (!valid) {
+      return res.status(401).json({ success: false, message: "Invalid signature" });
+    }
+
+    // 4. Invalidate nonce (one-time use)
+    nonceStore.value = null;
+
+    // 5. Issue JWT
     const token = jwt.sign(
-      {
-        userId: 12345,
-        role: "admin",
-      },
-      config.jwtSecret
+      { walletAddress, role: "admin" },
+      config.jwtSecret,
+      { expiresIn: "12h" }
     );
 
-    res.status(200).json({
-      token,
-    });
-    return;
+    return res.status(200).json({ success: true, token, walletAddress });
+  } catch (err) {
+    console.error("[AdminLogin] Error:", err);
+    return res.status(500).json({ success: false, message: "Login failed", error: err.message });
   }
-
-  res.status(200).json({
-    error: "wrong username and password",
-  });
 }
+
+
 
 // ============ WORKER ENDPOINTS ============
 

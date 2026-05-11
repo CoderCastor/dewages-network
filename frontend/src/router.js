@@ -14,6 +14,8 @@ import CompanySigninPage from "./pages/CompanySigninPage";
 import CompanyDashboard from "./pages/CompanyDashboard";
 import WorkerDashboard from "./pages/WorkerDashboard";
 import CompanyDetailPage from "./pages/admin/CompanyDetails";
+import WorkerProfilePage from "./pages/WorkerProfilePage";
+import CompanyProfilePage from "./pages/CompanyProfilePage";
 
 
 export const Router = createBrowserRouter([
@@ -33,8 +35,8 @@ export const Router = createBrowserRouter([
     path: "/company",
     Component: CompanyJobPostingPage,
   },
-    {
-    path: "/worker/signin",  // Add this route
+  {
+    path: "/worker/signin",
     Component: WorkerSigninPage,
   },
   {
@@ -53,21 +55,29 @@ export const Router = createBrowserRouter([
     path: "/company/signup",
     Component: CompanySignupForm,
   },
-    {
-    path: "/company/signin",  // Add this route
+  {
+    path: "/company/signin",
     Component: CompanySigninPage,
   },
-    {
-    path: "/company/dashboard",  // Add this route
+  {
+    path: "/company/dashboard",
     Component: CompanyDashboard,
   },
-   {
-    path: "/worker/dashboard",  // Add this route
+  {
+    path: "/worker/dashboard",
     Component: WorkerDashboard,
   },
   {
-  path: "/admin/company/:walletAddress",
-  Component: CompanyDetailPage,
-}
-
+    path: "/admin/company/:walletAddress",
+    Component: CompanyDetailPage,
+  },
+  {
+    path: "/worker/profile",
+    Component: WorkerProfilePage,
+  },
+  {
+    path: "/company/profile",
+    Component: CompanyProfilePage,
+  },
 ]);
+

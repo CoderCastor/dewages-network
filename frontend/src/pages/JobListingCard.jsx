@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import RatingModal from "@/components/common/RatingModal";
+import DisputeModal from "@/components/common/DisputeModal";
 import {
   MapPin,
   Clock,
@@ -21,6 +22,7 @@ import {
   Banknote,
   AlertCircle,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
@@ -52,12 +54,18 @@ const JobListingCard = ({
   const [disputeTimeRemaining, setDisputeTimeRemaining] = useState(null);
   const [proofOfWork, setProofOfWork] = useState(null);
   const [fetchedProof, setFetchedProof] = useState(false);
-  // Worker rating flow: show rating modal before allowing end OTP entry
+  // Worker rating flow
   const [showWorkerRatingModal, setShowWorkerRatingModal] = useState(false);
   const [workerRatingDone, setWorkerRatingDone] = useState(!!job.employerRating);
+  // Dispute flow
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [localDispute, setLocalDispute] = useState(job.dispute || null);
 
-  // Calculate dispute period countdown
+  // Calculate dispute period countdown — FROZEN when job is disputed
   useEffect(() => {
+    // Don't tick when a dispute is already raised
+    if (job.status === "disputed" || localDispute?.status) return;
+
     if (
       job.status === "pending_verification" &&
       job.disputePeriod?.isActive &&
@@ -88,7 +96,7 @@ const JobListingCard = ({
 
       return () => clearInterval(interval);
     }
-  }, [job.disputePeriod, job.status]);
+  }, [job.disputePeriod, job.status, localDispute]);
 
   // Fetch proof of work
   useEffect(() => {
@@ -623,157 +631,143 @@ const JobListingCard = ({
                 </div>
               </div>
 
-              {/* ✅ NEW: Fund Transfer Status - Shows right after proof */}
-              
-              {/* Dispute Period Active - With Countdown */}
-              {job.disputePeriod?.isActive &&
-                !job.disputePeriod?.isExpired &&
-                disputeTimeRemaining &&
-                !disputeTimeRemaining.expired && (
-                  <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 mb-2">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Shield className="w-5 h-5 text-yellow-600" />
-                      <p className="text-sm font-bold text-yellow-900">
-                        Dispute Period Active
-                      </p>
-                    </div>
-                    <div className="bg-white bg-opacity-60 rounded p-2">
-                      <p className="text-xs text-yellow-700 mb-1">
-                        Time Remaining:
-                      </p>
-                      <div className="grid grid-cols-4 gap-2 text-center">
-                        <div>
-                          <p className="text-lg font-bold text-yellow-900">
-                            {disputeTimeRemaining.days}
-                          </p>
-                          <p className="text-xs text-yellow-600">Days</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-yellow-900">
-                            {disputeTimeRemaining.hours}
-                          </p>
-                          <p className="text-xs text-yellow-600">Hrs</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-yellow-900">
-                            {disputeTimeRemaining.minutes}
-                          </p>
-                          <p className="text-xs text-yellow-600">Mins</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-yellow-900">
-                            {disputeTimeRemaining.seconds}
-                          </p>
-                          <p className="text-xs text-yellow-600">Secs</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              {/* ✅ Fund Transfer Status / Dispute status shows after proof */}
 
-              {/* Dispute Expired - Transfer Pending */}
-              {job.disputePeriod?.isExpired &&
-                !job.fundTransfer?.isTransferred && (
-                  <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mb-2">
-                    <div className="flex items-start space-x-3">
-                      <Loader2 className="w-5 h-5 text-blue-600 animate-spin mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-blue-900 mb-1">
-                          Payment Transfer Pending
-                        </p>
-                        <p className="text-xs text-blue-700">
-                          Dispute period ended. Funds will be transferred to your wallet soon.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+            </div>
+        )}
 
-              {/* Payment Transferred */}
-              {job.fundTransfer?.isTransferred && (
-                <div className="bg-green-50 border-2 border-green-400 rounded-lg p-3">
-                  <div className="flex items-start space-x-3">
-                    <div className="p-2 bg-green-200 rounded-lg">
-                      <Award className="w-5 h-5 text-green-700" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-green-900 mb-1">
-                        Payment Received! 🎉
-                      </p>
-                      <div className="space-y-2 bg-white bg-opacity-70 rounded p-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Amount:</span>
-                          <span className="font-bold text-green-700">
-                            {formatPayment(job.fundTransfer.amount || job.paymentAmount)} SOL
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Transferred:</span>
-                          <span className="font-medium text-gray-900">
-                            {formatDateTime(job.fundTransfer.transferredAt)}
-                          </span>
-                        </div>
+        {/* Bug Fix #4: Dispute already raised — show OUTSIDE proofOfWork block so it renders on Dispute tab */}
+        {(job.status === "disputed" || (localDispute || job.dispute)?.status) && (
+          <div className="mt-3 bg-red-50 border-2 border-red-300 rounded-lg p-3 mb-2">
+            <div className="flex items-center space-x-2 mb-2">
+              <div className="p-1.5 bg-red-200 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-red-700" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-red-900">⚠️ Dispute Raised</p>
+                <p className="text-xs text-red-600">
+                  {(localDispute || job.dispute)?.raisedBy === "worker"
+                    ? "Raised by you (worker)"
+                    : `Raised by the company`}
+                </p>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-red-200 mb-2">
+              <p className="text-xs font-medium text-red-800 mb-0.5">Reason:</p>
+              <p className="text-xs text-gray-700">{(localDispute || job.dispute)?.reason || "—"}</p>
+            </div>
+            {(localDispute || job.dispute)?.createdAt && (
+              <p className="text-xs text-red-500 mb-1">
+                Raised on: {new Date((localDispute || job.dispute).createdAt).toLocaleString()}
+              </p>
+            )}
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              <Shield className="w-3 h-3" /> Funds frozen — Admin is reviewing
+            </p>
+          </div>
+        )}
 
-                        {/* Wallet Address */}
-                        <div className="pt-2 border-t border-green-200">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-gray-600">To Wallet:</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyToClipboard(job.assignedWorker, "Wallet Address");
-                              }}
-                              className="p-1 hover:bg-green-100 rounded"
-                            >
-                              <Copy className="w-3 h-3 text-green-600" />
-                            </button>
-                          </div>
-                          <code className="text-xs bg-green-100 px-2 py-1 rounded font-mono block">
-                            {job.assignedWorker?.slice(0, 16)}...{job.assignedWorker?.slice(-16)}
-                          </code>
-                        </div>
 
-                        {/* Transaction Signature */}
-                        {job.fundTransfer.transactionSignature && (
-                          <div className="pt-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-gray-600">Transaction:</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyToClipboard(
-                                    job.fundTransfer.transactionSignature,
-                                    "Transaction Signature"
-                                  );
-                                }}
-                                className="p-1 hover:bg-green-100 rounded"
-                              >
-                                <Copy className="w-3 h-3 text-green-600" />
-                              </button>
-                            </div>
-                            <code className="text-xs bg-green-100 px-2 py-1 rounded font-mono block">
-                              {job.fundTransfer.transactionSignature.slice(0, 20)}...
-                            </code>
-                            <a
-                              href={`https://explorer.solana.com/tx/${job.fundTransfer.transactionSignature}?cluster=devnet`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center space-x-1 text-green-600 hover:text-green-700 mt-1"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              <span>View Transaction</span>
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+        {/* Dispute Period Active — show countdown + Raise Dispute */}
+        {!job.dispute?.status && job.status !== "disputed" &&
+          job.disputePeriod?.isActive &&
+          !job.disputePeriod?.isExpired &&
+          disputeTimeRemaining &&
+          !disputeTimeRemaining.expired && (
+            <div className="mt-3 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 mb-2 space-y-2">
+              <div className="flex items-center space-x-2">
+                <Shield className="w-5 h-5 text-yellow-600" />
+                <p className="text-sm font-bold text-yellow-900">Dispute Period Active</p>
+              </div>
+              <div className="bg-white bg-opacity-60 rounded p-2">
+                <p className="text-xs text-yellow-700 mb-1">Time Remaining:</p>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div><p className="text-lg font-bold text-yellow-900">{disputeTimeRemaining.days}</p><p className="text-xs text-yellow-600">Days</p></div>
+                  <div><p className="text-lg font-bold text-yellow-900">{disputeTimeRemaining.hours}</p><p className="text-xs text-yellow-600">Hrs</p></div>
+                  <div><p className="text-lg font-bold text-yellow-900">{disputeTimeRemaining.minutes}</p><p className="text-xs text-yellow-600">Mins</p></div>
+                  <div><p className="text-lg font-bold text-yellow-900">{disputeTimeRemaining.seconds}</p><p className="text-xs text-yellow-600">Secs</p></div>
                 </div>
-              )}
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDisputeModal(true); }}
+                className="w-full py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-semibold text-xs flex items-center justify-center space-x-1.5 transition-all"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Raise Dispute</span>
+              </button>
             </div>
           )}
+
+        {/* Dispute Expired - Transfer Pending */}
+        {job.disputePeriod?.isExpired && !job.fundTransfer?.isTransferred && (
+          <div className="mt-3 bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mb-2">
+            <div className="flex items-start space-x-3">
+              <Loader2 className="w-5 h-5 text-blue-600 animate-spin mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-blue-900 mb-1">Payment Transfer Pending</p>
+                <p className="text-xs text-blue-700">Dispute period ended. Funds will be transferred to your wallet soon.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Transferred */}
+        {job.fundTransfer?.isTransferred && (
+          <div className="mt-3 bg-green-50 border-2 border-green-400 rounded-lg p-3">
+            <div className="flex items-start space-x-3">
+              <div className="p-2 bg-green-200 rounded-lg">
+                <Award className="w-5 h-5 text-green-700" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-green-900 mb-1">Payment Received! 🎉</p>
+                <div className="space-y-2 bg-white bg-opacity-70 rounded p-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Amount:</span>
+                    <span className="font-bold text-green-700">{formatPayment(job.fundTransfer.amount || job.paymentAmount)} SOL</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Transferred:</span>
+                    <span className="font-medium text-gray-900">{formatDateTime(job.fundTransfer.transferredAt)}</span>
+                  </div>
+
+                  {/* Wallet Address */}
+                  <div className="pt-2 border-t border-green-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-gray-600">To Wallet:</span>
+                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard(job.assignedWorker, "Wallet Address"); }} className="p-1 hover:bg-green-100 rounded">
+                        <Copy className="w-3 h-3 text-green-600" />
+                      </button>
+                    </div>
+                    <code className="text-xs bg-green-100 px-2 py-1 rounded font-mono block">
+                      {job.assignedWorker?.slice(0, 16)}...{job.assignedWorker?.slice(-16)}
+                    </code>
+                  </div>
+
+                  {/* Transaction Signature */}
+                  {job.fundTransfer.transactionSignature && (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-gray-600">Transaction:</span>
+                        <button onClick={(e) => { e.stopPropagation(); copyToClipboard(job.fundTransfer.transactionSignature, "Transaction Signature"); }} className="p-1 hover:bg-green-100 rounded">
+                          <Copy className="w-3 h-3 text-green-600" />
+                        </button>
+                      </div>
+                      <code className="text-xs bg-green-100 px-2 py-1 rounded font-mono block">
+                        {job.fundTransfer.transactionSignature.slice(0, 20)}...
+                      </code>
+                      <a href={`https://explorer.solana.com/tx/${job.fundTransfer.transactionSignature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center space-x-1 text-green-600 hover:text-green-700 mt-1">
+                        <ExternalLink className="w-3 h-3" />
+                        <span>View Transaction</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
+
 
       {/* Worker Rating Modal — shown before end OTP entry */}
       {showWorkerRatingModal && (
@@ -877,6 +871,20 @@ const JobListingCard = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Worker Dispute Modal */}
+      {showDisputeModal && (
+        <DisputeModal
+          isOpen={showDisputeModal}
+          onClose={() => setShowDisputeModal(false)}
+          job={job}
+          raisedBy="worker"
+          onDisputeRaised={(dispute) => {
+            setLocalDispute(dispute);
+            setShowDisputeModal(false);
+          }}
+        />
+      )}
     </>
   );
 };

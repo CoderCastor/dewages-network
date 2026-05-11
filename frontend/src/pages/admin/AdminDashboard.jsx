@@ -3,24 +3,12 @@ import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import {
-  LogOut,
-  Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  Users,
-  UserCheck,
-  UserX,
-  Mail,
-  Phone,
-  MapPin,
-  Shield,
-  Star,
-  Briefcase,
-  CheckCircle,
-  XCircle,
-  Building2,
+  LogOut, Search, Filter, ChevronLeft, ChevronRight,
+  Users, UserCheck, UserX, Mail, Phone, MapPin,
+  Shield, Star, Briefcase, CheckCircle, XCircle,
+  Building2, AlertTriangle,
 } from "lucide-react";
+import DisputePanel from "./DisputePanel";
 import { BACKEND_URL } from "@/env-variables";
 
 export default function AdminDashboard() {
@@ -47,11 +35,12 @@ export default function AdminDashboard() {
   const [companies, setCompanies] = useState([]);
   const [filteredCompanies, setFilteredCompanies] = useState([]);
   const [showVerifiedCompanies, setShowVerifiedCompanies] = useState(false);
-  const [companyStats, setCompanyStats] = useState({
-    total: 0,
-    verified: 0,
-    unverified: 0,
-  });
+  const [companyStats, setCompanyStats] = useState({ total: 0, verified: 0, unverified: 0 });
+
+  // Disputes state
+  const [disputes, setDisputes] = useState([]);
+  const [disputeHistory, setDisputeHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -70,22 +59,13 @@ export default function AdminDashboard() {
     }
 
     fetchAllData();
+    fetchDisputes();
   }, [navigate]);
 
   useEffect(() => {
-    if (activeTab === "workers") {
-      filterWorkers();
-    } else {
-      filterCompanies();
-    }
-  }, [
-    workers,
-    companies,
-    showVerifiedWorkers,
-    showVerifiedCompanies,
-    searchQuery,
-    activeTab,
-  ]);
+    if (activeTab === "workers") filterWorkers();
+    else if (activeTab === "companies") filterCompanies();
+  }, [workers, companies, showVerifiedWorkers, showVerifiedCompanies, searchQuery, activeTab]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -145,6 +125,41 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  const fetchDisputes = async () => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`${BACKEND_URL}/admin/disputes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDisputes(data.disputes || []);
+      }
+    } catch (e) {
+      console.error("Error fetching disputes:", e);
+    }
+  };
+
+  const fetchDisputeHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`${BACKEND_URL}/admin/disputes/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDisputeHistory(data.history || []);
+      }
+    } catch (e) {
+      console.error("Error fetching dispute history:", e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Dispute resolution is now handled inside DisputePanel component
 
   const filterWorkers = () => {
     let filtered = [...workers];
@@ -227,8 +242,8 @@ export default function AdminDashboard() {
             className="animate-spin h-16 w-16 text-purple-500 mx-auto mb-4"
             viewBox="0 0 24 24"
           >
-            ircle className="opacity-25" cx="12" cy="12" r="10"
-            stroke="currentColor" strokeWidth="4"4" fill="none" />
+            <circle className="opacity-25" cx="12" cy="12" r="10"
+              stroke="currentColor" strokeWidth="4" fill="none" />
             <path
               className="opacity-75"
               fill="currentColor"
@@ -327,10 +342,7 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => {
-              setActiveTab("companies");
-              setSearchQuery("");
-            }}
+            onClick={() => { setActiveTab("companies"); setSearchQuery(""); }}
             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
               activeTab === "companies"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg"
@@ -339,15 +351,39 @@ export default function AdminDashboard() {
           >
             <Building2 className="w-5 h-5" />
             <span>Companies</span>
-            <span
-              className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
-                activeTab === "companies"
-                  ? "bg-white text-blue-600"
-                  : "bg-slate-200 text-slate-700"
-              }`}
-            >
-              {companyStats.total}
-            </span>
+            <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
+              activeTab === "companies" ? "bg-white text-blue-600" : "bg-slate-200 text-slate-700"
+            }`}>{companyStats.total}</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("disputes"); setSearchQuery(""); fetchDisputes(); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+              activeTab === "disputes"
+                ? "bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg"
+                : "text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <AlertTriangle className="w-5 h-5" />
+            <span>Disputes</span>
+            <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
+              activeTab === "disputes" ? "bg-white text-red-600" : "bg-red-100 text-red-700"
+            }`}>{disputes.length}</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("history"); setSearchQuery(""); fetchDisputeHistory(); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+              activeTab === "history"
+                ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white shadow-lg"
+                : "text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <CheckCircle className="w-5 h-5" />
+            <span>History</span>
+            <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
+              activeTab === "history" ? "bg-white text-slate-700" : "bg-slate-200 text-slate-700"
+            }`}>{disputeHistory.length}</span>
           </button>
         </motion.div>
 
@@ -411,7 +447,8 @@ export default function AdminDashboard() {
           </div>
         </motion.div>
 
-        {/* Filters and Search */}
+        {/* Filters and Search — hidden on disputes and history tabs */}
+        {activeTab !== "disputes" && activeTab !== "history" && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -469,8 +506,91 @@ export default function AdminDashboard() {
             )}
           </div>
         </motion.div>
+        )} {/* end activeTab !== "disputes" search/filter */}
 
-        {/* Table */}
+        {/* Disputes Tab */}
+        {activeTab === "disputes" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <DisputePanel disputes={disputes} onResolved={fetchDisputes} />
+          </motion.div>
+        )}
+
+        {/* History Tab */}
+        {activeTab === "history" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            {loadingHistory ? (
+              <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4" />
+                <p className="text-slate-500">Loading dispute history...</p>
+              </div>
+            ) : disputeHistory.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                <CheckCircle className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500 text-lg font-medium">No resolved disputes yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-slate-800">Resolved Disputes ({disputeHistory.length})</h3>
+                </div>
+                {disputeHistory.map((h) => (
+                  <div key={h._id} className="bg-white rounded-xl shadow-md border-l-4 border-green-500 p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-bold text-slate-800">{h.jobTitle || "—"}</h4>
+                        <div className="flex gap-4 mt-1 text-sm text-slate-500">
+                          <span>Company: <span className="font-semibold text-slate-700">{h.companyName || "—"}</span></span>
+                          <span>Worker: <span className="font-semibold text-slate-700">{h.workerName || "—"}</span></span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Resolved: {new Date(h.resolvedAt).toLocaleString()}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          h.resolution === "favor_worker" ? "bg-green-100 text-green-700" :
+                          h.resolution === "favor_employer" ? "bg-orange-100 text-orange-700" :
+                          "bg-blue-100 text-blue-700"
+                        }`}>
+                          {h.resolution === "favor_worker" ? "✅ Favored Worker" :
+                           h.resolution === "favor_employer" ? "🏢 Favored Company" : "⚖️ Split 50/50"}
+                        </span>
+                        {h.onChainSuccess
+                          ? <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> On-chain ✓</span>
+                          : <span className="text-xs text-orange-500 font-semibold">⚠ DB only</span>}
+                      </div>
+                    </div>
+
+                    {h.dispute?.reason && (
+                      <div className="bg-slate-50 rounded-lg p-3 mb-3 text-sm">
+                        <p className="font-medium text-slate-600 mb-1">Dispute Reason:</p>
+                        <p className="text-slate-700">{h.dispute.reason}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Raised by {h.dispute.raisedBy} on {h.dispute.createdAt ? new Date(h.dispute.createdAt).toLocaleDateString() : "—"}
+                        </p>
+                      </div>
+                    )}
+
+                    {h.resolutionNotes && h.resolutionNotes !== h.resolution && (
+                      <p className="text-sm text-slate-600 mb-2"><span className="font-medium">Notes:</span> {h.resolutionNotes}</p>
+                    )}
+
+                    {h.txSignature && (
+                      <a
+                        href={`https://explorer.solana.com/tx/${h.txSignature}?cluster=devnet`}
+                        target="_blank" rel="noreferrer"
+                        className="text-xs text-indigo-600 hover:underline font-mono break-all"
+                      >
+                        🔗 Tx: {h.txSignature}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Workers / Companies table */}
+        {activeTab !== "disputes" && activeTab !== "history" && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -709,7 +829,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-        </motion.div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

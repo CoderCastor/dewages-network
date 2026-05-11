@@ -26,11 +26,13 @@ import {
   Banknote,
   FileCheck,
   ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
 import CompanyOTPGenerator from "@/components/common/CompanyOTPGenerator";
+import DisputeModal from "@/components/common/DisputeModal";
 
 const JobCard = ({
   job,
@@ -61,6 +63,8 @@ const JobCard = ({
   const [disputePeriodRemaining, setDisputePeriodRemaining] = useState(null);
   const [proofOfWork, setProofOfWork] = useState(null);
   const [loadingProof, setLoadingProof] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [localDispute, setLocalDispute] = useState(job.dispute || null);
 
   // Update state when job prop changes
   useEffect(() => {
@@ -74,8 +78,11 @@ const JobCard = ({
     setEndOTPUsedAt(job.endJobOTP?.usedAt || null);
   }, [job]);
 
-  // Calculate dispute period countdown
+  // Calculate dispute period countdown — FROZEN when job is disputed
   useEffect(() => {
+    // If already disputed, don't run the live countdown
+    if (job.status === "disputed" || localDispute?.status) return;
+
     if (job.disputePeriod?.isActive && job.disputePeriod?.endsAt) {
       const updateTimer = () => {
         const now = new Date();
@@ -108,7 +115,7 @@ const JobCard = ({
 
       return () => clearInterval(interval);
     }
-  }, [job.disputePeriod]);
+  }, [job.disputePeriod, job.status, localDispute]);
 
   // Fetch proof of work if job is pending verification or completed
   useEffect(() => {
@@ -580,6 +587,36 @@ const JobCard = ({
 
   // Render Dispute Period Status
   const renderDisputePeriodStatus = () => {
+    const activeDispute = localDispute || job.dispute;
+
+    // ── Dispute already raised ──────────────────────────────────────────────
+    if (job.status === "disputed" || activeDispute?.status) {
+      const raisedBy = activeDispute?.raisedBy;
+      const isMyDispute = raisedBy === "company";
+      return (
+        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="p-2 bg-red-200 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-700" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-900">Dispute Raised</p>
+              <p className="text-xs text-red-600">
+                {isMyDispute ? "Raised by you" : "Raised by the worker"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-red-200 text-sm text-red-800">
+            <p className="font-medium mb-1">Reason:</p>
+            <p className="text-xs text-gray-700">{activeDispute?.reason || "—"}</p>
+          </div>
+          <p className="text-xs text-red-500 mt-3 flex items-center gap-1">
+            <Shield className="w-3 h-3" /> Funds frozen in escrow — Admin is reviewing
+          </p>
+        </div>
+      );
+    }
+
     if (
       !job.disputePeriod ||
       (job.status !== "pending_verification" && job.status !== "completed")
@@ -590,7 +627,7 @@ const JobCard = ({
     const { isActive, isExpired } = job.disputePeriod;
     const fundsTransferred = job.fundTransfer?.isTransferred || false;
 
-    // Case 1: Dispute period is active
+    // Case 1: Dispute period active — show countdown + Raise Dispute button
     if (
       isActive &&
       !isExpired &&
@@ -600,51 +637,34 @@ const JobCard = ({
       const { days, hours, minutes, seconds } = disputePeriodRemaining;
 
       return (
-        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-lg p-4 shadow-md">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-yellow-200 rounded-lg">
-                <Shield className="w-5 h-5 text-yellow-700" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-yellow-900">
-                  Dispute Period Active
-                </p>
-                <p className="text-xs text-yellow-700">
-                  Parties can raise disputes if needed
-                </p>
-              </div>
+        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-lg p-4 shadow-md space-y-3">
+          <div className="flex items-center space-x-2">
+            <div className="p-2 bg-yellow-200 rounded-lg">
+              <Shield className="w-5 h-5 text-yellow-700" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-yellow-900">Dispute Period Active</p>
+              <p className="text-xs text-yellow-700">Raise a dispute if work was unsatisfactory</p>
             </div>
           </div>
 
           <div className="bg-white bg-opacity-70 rounded-lg p-3 border border-yellow-300">
-            <p className="text-xs text-yellow-700 font-medium mb-2">
-              Time Remaining:
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-yellow-900">{days}</p>
-                <p className="text-xs text-yellow-600">Days</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-yellow-900">{hours}</p>
-                <p className="text-xs text-yellow-600">Hours</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-yellow-900">{minutes}</p>
-                <p className="text-xs text-yellow-600">Mins</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-yellow-900">{seconds}</p>
-                <p className="text-xs text-yellow-600">Secs</p>
-              </div>
+            <p className="text-xs text-yellow-700 font-medium mb-2">Time Remaining:</p>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div><p className="text-2xl font-bold text-yellow-900">{days}</p><p className="text-xs text-yellow-600">Days</p></div>
+              <div><p className="text-2xl font-bold text-yellow-900">{hours}</p><p className="text-xs text-yellow-600">Hours</p></div>
+              <div><p className="text-2xl font-bold text-yellow-900">{minutes}</p><p className="text-xs text-yellow-600">Mins</p></div>
+              <div><p className="text-2xl font-bold text-yellow-900">{seconds}</p><p className="text-xs text-yellow-600">Secs</p></div>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center space-x-2 text-xs text-yellow-700 bg-white bg-opacity-50 rounded px-3 py-2">
-            <AlertCircle className="w-4 h-4" />
-            <span>Funds will be released after dispute period ends</span>
-          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowDisputeModal(true); }}
+            className="w-full py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-semibold text-sm flex items-center justify-center space-x-2 transition-all shadow-sm"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span>Raise Dispute</span>
+          </button>
         </div>
       );
     }
@@ -737,12 +757,13 @@ const JobCard = ({
   };
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden"
-    >
+    <>
+      <motion.div
+        whileHover={{ scale: 1.02, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden"
+      >
       {/* Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start justify-between mb-3">
@@ -900,8 +921,9 @@ const JobCard = ({
           </div>
         )}
 
-        {/* Proof of Work + Dispute Period Status (for pending_verification/completed jobs) */}
+        {/* Proof of Work + Dispute Period Status (for pending_verification/completed/disputed jobs) */}
         {(job.status === "pending_verification" ||
+          job.status === "disputed" ||
           job.status === "completed") && (
           <div className="pt-4 border-t border-gray-100 space-y-3">
             {job.workerName && (
@@ -929,7 +951,7 @@ const JobCard = ({
             {/* Render Proof of Work */}
             {proofOfWork && renderProofOfWorkSection()}
 
-            {/* Render Dispute Period Status */}
+            {/* Render Dispute Period Status / Dispute status */}
             {renderDisputePeriodStatus()}
           </div>
         )}
@@ -942,6 +964,22 @@ const JobCard = ({
         </p>
       </div>
     </motion.div>
+
+    {/* Dispute Modal — portal, escapes transform stacking context */}
+    {showDisputeModal && (
+      <DisputeModal
+        isOpen={showDisputeModal}
+        onClose={() => setShowDisputeModal(false)}
+        job={job}
+        raisedBy="company"
+        onDisputeRaised={(dispute) => {
+          setLocalDispute(dispute);
+          setShowDisputeModal(false);
+          if (onUpdate) onUpdate();
+        }}
+      />
+    )}
+    </>
   );
 };
 

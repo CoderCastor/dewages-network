@@ -239,13 +239,10 @@ const getCompanyJobs = async (req, res) => {
     // Group jobs by status for dashboard tabs
     const jobsByStatus = {
       active: jobs.filter((j) => j.status === "open"),
-      inProgress: jobs.filter((j) => j.status === "in_progress"),
-      completed: jobs.filter(
-        (j) => j.status === "completed" || j.status === "pending_verification"
-      ),
-      rejected: jobs.filter(
-        (j) => j.status === "cancelled" || j.status === "disputed"
-      ),
+      inProgress: jobs.filter((j) => j.status === "in_progress" || j.status === "pending_verification"),
+      completed: jobs.filter((j) => j.status === "completed"),
+      disputed: jobs.filter((j) => j.status === "disputed"),
+      rejected: jobs.filter((j) => j.status === "cancelled"),
     };
 
     return res.status(200).json({
@@ -276,13 +273,10 @@ const getCompanyStats = async (req, res) => {
     // Group jobs by status for dashboard tabs
     const jobsByStatus = {
       active: jobs.filter((j) => j.status === "open"),
-      inProgress: jobs.filter((j) => j.status === "in_progress"),
-      completed: jobs.filter(
-        (j) => j.status === "completed" || j.status === "pending_verification"
-      ),
-      rejected: jobs.filter(
-        (j) => j.status === "cancelled" || j.status === "disputed"
-      ),
+      inProgress: jobs.filter((j) => j.status === "in_progress" || j.status === "pending_verification"),
+      completed: jobs.filter((j) => j.status === "completed"),
+      disputed: jobs.filter((j) => j.status === "disputed"),
+      rejected: jobs.filter((j) => j.status === "cancelled"),
     };
 
     // Calculate stats
@@ -619,6 +613,15 @@ const approveWorkerApplication = async (req, res) => {
     // Update application status
     application.status = "approved";
     application.approvedAt = new Date();
+
+    // ✅ FIX: Mark all OTHER pending applicants as rejected
+    // so they appear in their "Rejected" tab
+    job.applications.forEach((app) => {
+      if (app.workerWallet !== workerWallet && app.status === "pending") {
+        app.status = "rejected";
+        app.rejectedAt = new Date();
+      }
+    });
 
     // Update job with assigned worker
     job.assignedWorker = workerWallet;
@@ -1379,6 +1382,161 @@ const getWorkerCompletedJobs = async (req, res) => {
 };
 
 // ============================================================================
+// Reject Worker Application (Company)
+// ============================================================================
+
+const rejectWorkerApplication = async (req, res) => {
+  try {
+    const { jobId, workerWallet } = req.body;
+    const companyWallet = req.user.walletAddress;
+
+    if (!jobId || !workerWallet) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: jobId and workerWallet",
+      });
+    }
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: "Job not found" });
+    }
+
+    if (job.companyWallet !== companyWallet) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const application = job.applications.find(
+      (app) => app.workerWallet === workerWallet
+    );
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
+
+    if (application.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Application is already ${application.status}`,
+      });
+    }
+
+    application.status = "rejected";
+    application.rejectedAt = new Date();
+
+    await job.save();
+
+    console.log(`✅ Worker ${workerWallet} application rejected for job ${jobId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Application rejected successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error rejecting worker:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reject worker application",
+      error: error.message,
+    });
+  }
+};
+
+// ============================================================================
+// Get Worker Profile by wallet (for company viewing worker profile)
+// ============================================================================
+
+const getWorkerProfile = async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+
+    const worker = await WorkerProfile.findOne({ walletAddress }).lean();
+
+    if (!worker) {
+      return res.status(404).json({ success: false, message: "Worker not found" });
+    }
+
+    // Get job stats for this worker
+    const totalJobs = await Job.countDocuments({
+      assignedWorker: walletAddress,
+    });
+    const completedJobs = await Job.countDocuments({
+      assignedWorker: walletAddress,
+      status: "completed",
+    });
+    const disputedJobs = await Job.countDocuments({
+      assignedWorker: walletAddress,
+      status: "disputed",
+    });
+
+    return res.status(200).json({
+      success: true,
+      worker: {
+        ...worker,
+        jobStats: { totalJobs, completedJobs, disputedJobs },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching worker profile:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch worker profile", error: error.message });
+  }
+};
+
+// ============================================================================
+// Get Company Disputed Jobs (for company dispute tab)
+// ============================================================================
+
+const getCompanyDisputedJobs = async (req, res) => {
+  try {
+    const companyWallet = req.user.walletAddress;
+
+    const jobs = await Job.find({
+      companyWallet,
+      status: "disputed",
+    }).sort({ "dispute.createdAt": -1 }).lean();
+
+    return res.status(200).json({ success: true, jobs });
+  } catch (error) {
+    console.error("Error fetching disputed jobs:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch disputed jobs", error: error.message });
+  }
+};
+
+// ============================================================================
+// Get Worker Disputed Jobs (for worker dispute tab)
+// ============================================================================
+
+const getWorkerDisputedJobs = async (req, res) => {
+  try {
+    const workerWallet = req.user.walletAddress;
+
+    const jobs = await Job.find({
+      assignedWorker: workerWallet,
+      status: "disputed",
+    }).sort({ "dispute.createdAt": -1 }).lean();
+
+    // Fetch company details
+    const jobsWithDetails = await Promise.all(
+      jobs.map(async (job) => {
+        const company = await CompanyProfile.findOne({
+          walletAddress: job.companyWallet,
+        }).select("companyName email location").lean();
+        return { ...job, companyDetails: company || null };
+      })
+    );
+
+    return res.status(200).json({ success: true, jobs: jobsWithDetails });
+  } catch (error) {
+    console.error("Error fetching worker disputed jobs:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch disputed jobs", error: error.message });
+  }
+};
+
+// ============================================================================
 // Export all functions
 // ============================================================================
 
@@ -1390,6 +1548,7 @@ export {
   applyForJob,
   getJobApplications,
   approveWorkerApplication,
+  rejectWorkerApplication,
   updateJobStatus,
   getWorkerJobs,
   getCompanyStats,
@@ -1401,4 +1560,7 @@ export {
   markFundTransferred,
   getWorkerInProgressJobs,
   getWorkerCompletedJobs,
+  getWorkerProfile,
+  getCompanyDisputedJobs,
+  getWorkerDisputedJobs,
 };

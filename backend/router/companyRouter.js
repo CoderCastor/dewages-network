@@ -6,21 +6,50 @@ import {
   updateCompanyProfile,
 } from "../controller/companyController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-// import { authMiddleware } from "../middleware/authMiddleware.js";
+import { CompanyProfile } from "../model/companyModel.js";
 
 const router = express.Router();
 
 // POST /api/company/verify-wallet
-// Verify wallet signature and create initial company record
 router.post("/verify-wallet", verifyCompanyWallet);
 
 // POST /api/company/signup
-// Complete company registration with full details
 router.post("/signup", signupCompany);
 
-// GET /api/company/:walletAddress
-// Get company profile by wallet address
+// GET /api/company/profile/me - Get current company's own profile
+router.get("/profile/me", authMiddleware, async (req, res) => {
+  try {
+    const company = await CompanyProfile.findOne({ walletAddress: req.user.walletAddress }).lean();
+    if (!company) return res.status(404).json({ success: false, message: "Company profile not found" });
+    return res.status(200).json({ success: true, company });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch profile", error: error.message });
+  }
+});
+
+// PATCH /api/company/profile/update - Update company's updatable fields
+router.patch("/profile/update", authMiddleware, async (req, res) => {
+  try {
+    const allowedFields = ["companyName", "companyType", "phone", "email", "website", "description", "location", "interestedCategories", "contactPerson", "socialProfiles"];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    }
+    const updated = await CompanyProfile.findOneAndUpdate(
+      { walletAddress: req.user.walletAddress },
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+    if (!updated) return res.status(404).json({ success: false, message: "Company not found" });
+    return res.status(200).json({ success: true, message: "Profile updated", company: updated });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to update profile", error: error.message });
+  }
+});
+
+// GET /api/company/:walletAddress - Get company profile by wallet address
 router.get("/:walletAddress", getCompanyProfile);
+
 
 router.get("/jobs", authMiddleware, async (req, res) => {
   try {

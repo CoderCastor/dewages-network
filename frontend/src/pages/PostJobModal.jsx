@@ -19,7 +19,7 @@ import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "@/env-variables";
-import idl from "@/idl/employment_platform.json";
+import idl from "@/idl/employment_platform.json" with { type: "json" };
 
 const JOB_CATEGORIES = [
   { value: "construction", label: "Construction" },

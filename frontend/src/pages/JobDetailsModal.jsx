@@ -28,7 +28,7 @@ import toast from "react-hot-toast";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
-import idl from "@/idl/employment_platform.json";
+import idl from "@/idl/employment_platform.json" with { type: "json" };
 
 const JobDetailsModal = ({ isOpen, onClose, job, onUpdate }) => {
     const [applications, setApplications] = useState([]);
@@ -36,6 +36,7 @@ const JobDetailsModal = ({ isOpen, onClose, job, onUpdate }) => {
     const [selectedWorker, setSelectedWorker] = useState(null);
     const [showWorkerDetails, setShowWorkerDetails] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
+    const [isRejecting, setIsRejecting] = useState(null); // stores workerWallet being rejected
     const [onChainJobData, setOnChainJobData] = useState(null);
     const [onChainEscrowData, setOnChainEscrowData] = useState(null);
     const [loadingOnChainData, setLoadingOnChainData] = useState(false);
@@ -354,6 +355,34 @@ const JobDetailsModal = ({ isOpen, onClose, job, onUpdate }) => {
             }
         } finally {
             setIsApproving(false);
+        }
+    };
+
+    const handleRejectWorker = async (workerWallet) => {
+        setIsRejecting(workerWallet);
+        const loadingToast = toast.loading("Rejecting application...");
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.post(
+                `${BACKEND_URL}/job/reject-worker`,
+                { jobId: job._id, workerWallet },
+                { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+            );
+            if (response.data.success) {
+                toast.success("Application rejected", { id: loadingToast });
+                // Update local state
+                setApplications((prev) =>
+                    prev.map((app) =>
+                        app.workerWallet === workerWallet ? { ...app, status: "rejected" } : app
+                    )
+                );
+            } else {
+                toast.error(response.data.message || "Failed to reject", { id: loadingToast });
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to reject application", { id: loadingToast });
+        } finally {
+            setIsRejecting(null);
         }
     };
 
@@ -1192,41 +1221,59 @@ const JobDetailsModal = ({ isOpen, onClose, job, onUpdate }) => {
                                                             </span>
                                                         </button>
 
-                                                        {app.status ===
-                                                            "pending" && (
+                                                        {app.status === "pending" && (
                                                             <button
                                                                 onClick={() =>
                                                                     handleApproveWorker(
                                                                         app.workerWallet,
                                                                     )
                                                                 }
-                                                                disabled={
-                                                                    isApproving
-                                                                }
+                                                                disabled={isApproving}
                                                                 className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                                             >
                                                                 {isApproving ? (
                                                                     <>
                                                                         <Loader2 className="w-4 h-4 animate-spin" />
-                                                                        <span>
-                                                                            Approving...
-                                                                        </span>
+                                                                        <span>Approving...</span>
                                                                     </>
                                                                 ) : (
                                                                     <>
                                                                         <CheckCircle className="w-4 h-4" />
-                                                                        <span>
-                                                                            Approve
-                                                                        </span>
+                                                                        <span>Approve</span>
                                                                     </>
                                                                 )}
                                                             </button>
                                                         )}
 
-                                                        {app.status ===
-                                                            "approved" && (
+                                                        {app.status === "pending" && (
+                                                            <button
+                                                                onClick={() => handleRejectWorker(app.workerWallet)}
+                                                                disabled={isRejecting === app.workerWallet || isApproving}
+                                                                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                {isRejecting === app.workerWallet ? (
+                                                                    <>
+                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                        <span>Rejecting...</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <AlertCircle className="w-4 h-4" />
+                                                                        <span>Reject</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
+
+                                                        {app.status === "approved" && (
                                                             <span className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg font-medium">
                                                                 Approved
+                                                            </span>
+                                                        )}
+
+                                                        {app.status === "rejected" && (
+                                                            <span className="px-4 py-2 text-sm bg-red-100 text-red-700 rounded-lg font-medium">
+                                                                Rejected
                                                             </span>
                                                         )}
                                                     </div>

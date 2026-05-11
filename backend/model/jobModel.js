@@ -153,7 +153,10 @@ const jobSchema = new mongoose.Schema(
     // Dispute (if any)
     dispute: {
       disputePDA: { type: String },
+      txSignature: { type: String },
       reason: { type: String },
+      raisedBy: { type: String, enum: ["company", "worker"] }, // who raised it
+      raisedByWallet: { type: String }, // wallet address of who raised it
       evidenceS3Urls: [{ type: String }],
       status: {
         type: String,
@@ -162,6 +165,7 @@ const jobSchema = new mongoose.Schema(
           "under_review",
           "resolved_for_employer",
           "resolved_for_worker",
+          "dismissed",
         ],
       },
       createdAt: { type: Date },
@@ -299,7 +303,7 @@ jobSchema.statics.getAppliedByWorker = function (workerWallet) {
 jobSchema.statics.getAssignedToWorker = function (workerWallet) {
   return this.find({
     assignedWorker: workerWallet,
-    status: { $in: ["in_progress", "pending_verification"] },
+    status: { $in: ["in_progress", "pending_verification", "disputed"] },
   }).sort({ startedAt: -1 });
 };
 

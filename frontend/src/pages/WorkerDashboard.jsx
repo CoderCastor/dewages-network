@@ -1,15 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Briefcase,
-  Clock,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
-  DollarSign,
-  Search,
-  Filter,
-  MapPin,
+  Briefcase, Clock, CheckCircle, XCircle, TrendingUp,
+  Search, Filter, AlertTriangle, UserCircle,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
@@ -19,249 +12,218 @@ import WorkerStatsCards from "./WorkerStatsCards";
 import JobListingCard from "./JobListingCard";
 import CompanyInfoModal from "./CompanyInfoModal";
 import JobDetailsModalWorker from "./JobDetailsModalWorker";
+import { useNavigate } from "react-router";
 
 const ACTIVE_CLASSES = {
   blue: "border-blue-500 text-blue-600",
   orange: "border-orange-500 text-orange-600",
   green: "border-green-500 text-green-600",
   red: "border-red-500 text-red-600",
+  purple: "border-purple-500 text-purple-600",
 };
+
+const TAB_ENDPOINTS = {
+  active:     "/job/available",
+  applied:    "/job/worker/applied",
+  inProgress: "/job/worker/in-progress",
+  completed:  "/job/worker/completed",
+  disputed:   "/job/worker/disputed",
+  rejected:   "/job/worker/rejected",
+};
+
+const TABS = [
+  { id: "active",     label: "Available Jobs", icon: Briefcase,     color: "blue"   },
+  { id: "applied",    label: "Applied",        icon: Clock,          color: "orange" },
+  { id: "inProgress", label: "In Progress",    icon: TrendingUp,     color: "orange" },
+  { id: "completed",  label: "Completed",      icon: CheckCircle,    color: "green"  },
+  { id: "disputed",   label: "Dispute",        icon: AlertTriangle,  color: "purple" },
+  { id: "rejected",   label: "Rejected",       icon: XCircle,        color: "red"    },
+];
+
+const CATEGORIES = [
+  { value: "all",           label: "All Categories" },
+  { value: "construction",  label: "Construction"   },
+  { value: "delivery",      label: "Delivery"       },
+  { value: "domestic_help", label: "Domestic Help"  },
+  { value: "event_staffing",label: "Event Staffing" },
+  { value: "agriculture",   label: "Agriculture"    },
+  { value: "cleaning",      label: "Cleaning"       },
+  { value: "security",      label: "Security"       },
+  { value: "other",         label: "Other"          },
+];
 
 const WorkerDashboard = () => {
   const { publicKey } = useWallet();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("active");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab]         = useState("active");
+  const [searchTerm, setSearchTerm]       = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedJob, setSelectedJob]     = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [showJobDetailsModal, setShowJobDetailsModal] = useState(false);
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal]       = useState(false);
 
-  // Jobs by status
+  // All jobs keyed by tab id
   const [jobsByStatus, setJobsByStatus] = useState({
-    active: [], // Available jobs to apply
-    applied: [], // Jobs worker has applied to
-    inProgress: [], // Jobs worker is working on
-    completed: [], // Completed jobs
-    rejected: [], // Rejected applications
+    active: [], applied: [], inProgress: [], completed: [], disputed: [], rejected: [],
+  });
+  // Tab counts — set from fetched data on mount
+  const [tabCounts, setTabCounts] = useState({
+    active: 0, applied: 0, inProgress: 0, completed: 0, disputed: 0, rejected: 0,
   });
 
-  const [loading, setLoading] = useState(true);
+  const [loadingAll, setLoadingAll]   = useState(true);   // first-load spinner
+  const [loadingTab, setLoadingTab]   = useState(false);   // tab-switch spinner
   const [stats, setStats] = useState({
-    availableJobs: 0,
-    appliedJobs: 0,
-    activeJobs: 0,
-    completedJobs: 0,
-    totalEarnings: 0,
+    availableJobs: 0, appliedJobs: 0, activeJobs: 0, completedJobs: 0, totalEarnings: 0,
   });
 
-  const tabs = [
-    { id: "active", label: "Available Jobs", icon: Briefcase, color: "blue" },
-    { id: "applied", label: "Applied", icon: Clock, color: "orange" },
-    {
-      id: "inProgress",
-      label: "In Progress",
-      icon: TrendingUp,
-      color: "orange",
-    },
-    { id: "completed", label: "Completed", icon: CheckCircle, color: "green" },
-    { id: "rejected", label: "Rejected", icon: XCircle, color: "red" },
-  ];
+  // Track which tabs have already been fully loaded
+  const loadedTabs = useRef(new Set());
 
-  const categories = [
-    { value: "all", label: "All Categories" },
-    { value: "construction", label: "Construction" },
-    { value: "delivery", label: "Delivery" },
-    { value: "domestic_help", label: "Domestic Help" },
-    { value: "event_staffing", label: "Event Staffing" },
-    { value: "agriculture", label: "Agriculture" },
-    { value: "cleaning", label: "Cleaning" },
-    { value: "security", label: "Security" },
-    { value: "other", label: "Other" },
-  ];
-
+  // ─── On mount: fetch ALL tabs in parallel so counts are correct immediately ──
   useEffect(() => {
-    if (publicKey) {
-      fetchJobs();
-      fetchStats();
-    } else {
-      setLoading(false);
-      resetJobsState();
+    if (!publicKey) {
+      setLoadingAll(false);
+      return;
     }
-  }, [publicKey, activeTab]);
+    initialLoad();
+    fetchStats();
+  }, [publicKey]);
 
-  const resetJobsState = () => {
-    setJobsByStatus({
-      active: [],
-      applied: [],
-      inProgress: [],
-      completed: [],
-      rejected: [],
+  const initialLoad = async () => {
+    setLoadingAll(true);
+    const token = localStorage.getItem("token");
+    const entries = Object.entries(TAB_ENDPOINTS);
+
+    const results = await Promise.allSettled(
+      entries.map(([, endpoint]) =>
+        axios.get(`${BACKEND_URL}${endpoint}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      )
+    );
+
+    const newJobsByStatus = {};
+    const newCounts       = {};
+
+    entries.forEach(([tabId], idx) => {
+      const r = results[idx];
+      if (r.status === "fulfilled" && r.value.data.success) {
+        const jobs = r.value.data.jobs || [];
+        newJobsByStatus[tabId] = jobs;
+        newCounts[tabId]       = jobs.length;
+        loadedTabs.current.add(tabId);
+      } else {
+        newJobsByStatus[tabId] = [];
+        newCounts[tabId]       = 0;
+      }
     });
+
+    setJobsByStatus(newJobsByStatus);
+    setTabCounts(newCounts);
+    setLoadingAll(false);
   };
 
-  const fetchJobs = async () => {
+  // ─── On tab switch: re-fetch only that tab (to get fresh data) ───────────────
+  const handleTabSwitch = useCallback(async (tabId) => {
+    setActiveTab(tabId);
     if (!publicKey) return;
-
+    const token = localStorage.getItem("token");
     try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-
-      let endpoint = "";
-      switch (activeTab) {
-        case "active":
-          endpoint = `${BACKEND_URL}/job/available`;
-          break;
-        case "applied":
-          endpoint = `${BACKEND_URL}/job/worker/applied`;
-          break;
-        case "inProgress":
-          endpoint = `${BACKEND_URL}/job/worker/in-progress`;
-          break;
-        case "completed":
-          endpoint = `${BACKEND_URL}/job/worker/completed`;
-          break;
-        case "rejected":
-          endpoint = `${BACKEND_URL}/job/worker/rejected`;
-          break;
-        default:
-          endpoint = `${BACKEND_URL}/job/available`;
-      }
-
-      const response = await axios.get(endpoint, {
+      setLoadingTab(true);
+      const res = await axios.get(`${BACKEND_URL}${TAB_ENDPOINTS[tabId]}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data.success) {
-        setJobsByStatus((prev) => ({
-          ...prev,
-          [activeTab]: response.data.jobs || [],
-        }));
+      if (res.data.success) {
+        const jobs = res.data.jobs || [];
+        setJobsByStatus(prev => ({ ...prev, [tabId]: jobs }));
+        setTabCounts(prev    => ({ ...prev, [tabId]: jobs.length }));
       }
-    } catch (error) {
-      console.error("Error fetching jobs:", error);
-      if (publicKey) {
-        toast.error("Failed to fetch jobs");
-      }
+    } catch (e) {
+      console.error("Error fetching tab:", e);
     } finally {
-      setLoading(false);
+      setLoadingTab(false);
     }
-  };
+  }, [publicKey]);
 
   const fetchStats = async () => {
     if (!publicKey) return;
-
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`${BACKEND_URL}/job/worker/stats`, {
+      const res = await axios.get(`${BACKEND_URL}/job/worker/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data.success) {
-        setStats(response.data.stats);
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    }
+      if (res.data.success) setStats(res.data.stats);
+    } catch (e) { console.error("Stats error:", e); }
   };
+
+  const refreshCurrentTab = useCallback(() => {
+    handleTabSwitch(activeTab);
+    fetchStats();
+  }, [activeTab, handleTabSwitch]);
 
   const handleApplyJob = async (jobId) => {
     try {
       const token = localStorage.getItem("token");
-
-      const response = await axios.post(
-        `${BACKEND_URL}/job/apply`,
-        { jobId },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const res = await axios.post(
+        `${BACKEND_URL}/job/apply`, { jobId },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      if (response.data.success) {
+      if (res.data.success) {
         toast.success("Application submitted successfully!");
-
-        // Update the job in the list to show as applied
-        setJobsByStatus((prev) => ({
+        setJobsByStatus(prev => ({
           ...prev,
-          active: prev.active.map((job) =>
-            job._id === jobId ? { ...job, hasApplied: true } : job
-          ),
+          active: prev.active.map(j => j._id === jobId ? { ...j, hasApplied: true } : j),
         }));
-
-        // Refresh stats
+        setTabCounts(prev => ({ ...prev, applied: prev.applied + 1 }));
         fetchStats();
       }
-    } catch (error) {
-      console.error("Error applying to job:", error);
-      toast.error(error.response?.data?.message || "Failed to apply");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Failed to apply");
     }
   };
 
-  // NEW: Handler for OTP usage
-  const handleOTPUsed = async (jobId, otpType) => {
-    // Refresh the job data
-    await fetchJobs();
-    await fetchStats();
-
-    if (otpType === "start") {
-      toast.success("Job started! You can now enter End OTP when done.");
-    } else {
-      toast.success("Job completed! Entering dispute period...");
-    }
+  const handleOTPUsed = async (_jobId, otpType) => {
+    await refreshCurrentTab();
+    if (otpType === "start") toast.success("Job started! Enter End OTP when done.");
+    else toast.success("Job completed! Entering dispute period...");
   };
 
   const handleJobClick = async (job) => {
     setSelectedJob(job);
     setShowJobDetailsModal(true);
-
-    // Fetch full job details if needed
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`${BACKEND_URL}/job/${job._id}`, {
+      const res = await axios.get(`${BACKEND_URL}/job/${job._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data.success) {
-        setSelectedJob(response.data.job);
-      }
-    } catch (error) {
-      console.error("Error fetching job details:", error);
-    }
+      if (res.data.success) setSelectedJob(res.data.job);
+    } catch (e) { console.error("Error fetching job details:", e); }
   };
 
   const handleViewCompany = async (companyWallet) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${BACKEND_URL}/company/${companyWallet}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (response.data.success) {
-        setSelectedCompany(response.data.company);
-        setShowCompanyModal(true);
-      }
-    } catch (error) {
-      console.error("Error fetching company details:", error);
-      toast.error("Failed to load company details");
-    }
+      const res = await axios.get(`${BACKEND_URL}/company/${companyWallet}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) { setSelectedCompany(res.data.company); setShowCompanyModal(true); }
+    } catch { toast.error("Failed to load company details"); }
   };
 
-  // Filter jobs based on search and category
   const filteredJobs = (jobsByStatus[activeTab] || []).filter((job) => {
+    if (!job.title) return true;
     const matchesSearch =
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.location?.city?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesCategory =
-      categoryFilter === "all" || job.category === categoryFilter;
-
+      (job.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.location?.city || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || job.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const isLoading = loadingAll || loadingTab;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -270,48 +232,48 @@ const WorkerDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Worker Dashboard
-              </h1>
+              <h1 className="text-3xl font-bold text-gray-900">Worker Dashboard</h1>
               <p className="text-gray-600">Find and manage your jobs</p>
             </div>
+            <button
+              onClick={() => navigate("/worker/profile")}
+              className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <UserCircle className="w-5 h-5" />
+              <span className="font-semibold">View Profile</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <WorkerStatsCards stats={stats} />
 
-        {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+          {/* Tabs */}
           <div className="border-b border-gray-200">
-            <nav
-              className="flex space-x-8 px-6 overflow-x-auto"
-              aria-label="Tabs"
-            >
-              {tabs.map((tab) => {
+            <nav className="flex space-x-2 px-4 overflow-x-auto" aria-label="Tabs">
+              {TABS.map((tab) => {
                 const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? ACTIVE_CLASSES[tab.color]
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    onClick={() => handleTabSwitch(tab.id)}
+                    className={`flex items-center space-x-2 py-4 px-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+                      isActive ? ACTIVE_CLASSES[tab.color] : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4" />
                     <span>{tab.label}</span>
-                    <span
-                      className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${
-                        activeTab === tab.id
-                          ? "bg-blue-100 text-blue-600"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {jobsByStatus[tab.id]?.length || 0}
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                      isActive
+                        ? tab.id === "disputed" ? "bg-purple-100 text-purple-700"
+                          : tab.id === "rejected" ? "bg-red-100 text-red-700"
+                          : "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-500"
+                    }`}>
+                      {loadingAll ? "…" : (tabCounts[tab.id] ?? 0)}
                     </span>
                   </button>
                 );
@@ -319,13 +281,22 @@ const WorkerDashboard = () => {
             </nav>
           </div>
 
-          {/* Search and Filters */}
+          {/* Dispute banner */}
+          {activeTab === "disputed" && (
+            <div className="mx-6 mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg flex items-center space-x-3">
+              <AlertTriangle className="w-5 h-5 text-purple-600 flex-shrink-0" />
+              <p className="text-sm text-purple-800">
+                <span className="font-semibold">Dispute period frozen.</span> Funds are held in escrow. An admin will review and resolve these disputes.
+              </p>
+            </div>
+          )}
+
+          {/* Search bar (active tab only) */}
           {activeTab === "active" && (
             <div className="p-6 border-b border-gray-200">
               <div className="flex flex-col md:flex-row gap-4">
-                {/* Search */}
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
                     placeholder="Search jobs by title, location..."
@@ -334,58 +305,46 @@ const WorkerDashboard = () => {
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-
-                {/* Category Filter */}
                 <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <select
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white min-w-[200px]"
+                    className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none bg-white min-w-[200px]"
                   >
-                    {categories.map((category) => (
-                      <option key={category.value} value={category.value}>
-                        {category.label}
-                      </option>
-                    ))}
+                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab Content */}
+          {/* Content */}
           <div className="p-6">
-            {loading ? (
+            {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
               </div>
             ) : filteredJobs.length === 0 ? (
               <div className="text-center py-12">
                 <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No jobs found
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {activeTab === "active"
-                    ? searchTerm || categoryFilter !== "all"
-                      ? "Try adjusting your search or filters"
-                      : "Check back later for new opportunities"
-                    : `No ${activeTab
-                        .replace(/([A-Z])/g, " $1")
-                        .toLowerCase()} jobs yet`}
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No jobs found</h3>
+                <p className="text-gray-500">
+                  {activeTab === "active" && (searchTerm || categoryFilter !== "all")
+                    ? "Try adjusting your search or filters"
+                    : `No ${TABS.find(t => t.id === activeTab)?.label.toLowerCase() || activeTab} jobs yet`}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredJobs.map((job) => (
+                {filteredJobs.map(job => (
                   <JobListingCard
                     key={job._id}
                     job={job}
                     onClick={() => handleJobClick(job)}
                     onApply={handleApplyJob}
                     showApplyButton={activeTab === "active"}
-                    onOTPUsed={handleOTPUsed} // NEW: Add OTP handler
+                    onOTPUsed={handleOTPUsed}
                   />
                 ))}
               </div>
@@ -402,8 +361,7 @@ const WorkerDashboard = () => {
             onClose={() => {
               setShowJobDetailsModal(false);
               setSelectedJob(null);
-              // Refresh jobs when modal closes to get updated data
-              fetchJobs();
+              refreshCurrentTab();
             }}
             job={selectedJob}
             onApply={handleApplyJob}
@@ -418,10 +376,7 @@ const WorkerDashboard = () => {
         {showCompanyModal && selectedCompany && (
           <CompanyInfoModal
             isOpen={showCompanyModal}
-            onClose={() => {
-              setShowCompanyModal(false);
-              setSelectedCompany(null);
-            }}
+            onClose={() => { setShowCompanyModal(false); setSelectedCompany(null); }}
             company={selectedCompany}
           />
         )}
