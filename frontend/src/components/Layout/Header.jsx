@@ -2,19 +2,24 @@ import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import Logo from '../common/Logo';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   const navItems = [
-    { label: 'How it Works', href: '#how-it-works' },
-    { label: 'Features', href: '#features' },
-    { label: 'About', href: '#about' },
-    { label: 'Contact', href: '#contact' },
+    { label: t('header.howItWorks'), href: '#how-it-works' },
+    { label: t('header.features'), href: '#features' },
+    { label: t('header.about'), href: '#about' },
+    { label: t('header.contact'), href: '#contact' },
   ];
 
   return (
@@ -38,22 +43,33 @@ const Header = () => {
           </nav>
 
           {/* Desktop Action Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" className="font-medium">
-              Login
+          <div className="hidden md:flex items-center space-x-3">
+            <LanguageSwitcher />
+            <Button
+              variant="ghost"
+              className="font-medium"
+              onClick={() => navigate('/worker/signin')}
+            >
+              {t('header.login')}
             </Button>
-            <Button className="font-medium">
-              Get Started
+            <Button
+              className="font-medium"
+              onClick={() => navigate('/worker/signup')}
+            >
+              {t('header.getStarted')}
             </Button>
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            onClick={toggleMobileMenu}
-            className="md:hidden p-2 rounded-md text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="flex md:hidden items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              onClick={toggleMobileMenu}
+              className="p-2 rounded-md text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation Menu */}
@@ -71,11 +87,18 @@ const Header = () => {
                 </a>
               ))}
               <div className="flex flex-col space-y-3 pt-4 border-t border-gray-200">
-                <Button variant="ghost" className="justify-start">
-                  Login
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => { navigate('/worker/signin'); setIsMobileMenuOpen(false); }}
+                >
+                  {t('header.login')}
                 </Button>
-                <Button className="justify-start">
-                  Get Started
+                <Button
+                  className="justify-start"
+                  onClick={() => { navigate('/worker/signup'); setIsMobileMenuOpen(false); }}
+                >
+                  {t('header.getStarted')}
                 </Button>
               </div>
             </nav>

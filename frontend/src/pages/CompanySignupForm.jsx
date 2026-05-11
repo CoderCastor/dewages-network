@@ -24,6 +24,8 @@ import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
 import {useNavigate} from "react-router"
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 
 const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
 
@@ -132,6 +134,7 @@ const CompanySignupForm = () => {
   const { WalletAddress, isWalletVerified } = useWalletInformation();
 
   const navigate = useNavigate()
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     walletAddress: "",
@@ -860,6 +863,9 @@ const CompanySignupForm = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -869,7 +875,7 @@ const CompanySignupForm = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl md:text-3xl font-bold text-blue-800 mb-2"
             >
-              Register Your Company
+              {t("signup.companyTitle")}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: -10 }}
@@ -877,7 +883,7 @@ const CompanySignupForm = () => {
               transition={{ delay: 0.1 }}
               className="text-gray-600 text-lg"
             >
-              Create your profile and start hiring workers
+              {t("signin.companySubtitle")}
             </motion.p>
           </div>
 

@@ -110,7 +110,7 @@ bullet([
 h('2.2 Methodology', 2)
 bullet([
     'Architecture: Hybrid Web3 — Solana on-chain smart contract + off-chain Node.js API + React frontend.',
-    'Blockchain Platform: Solana (Program ID: 3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ).',
+    'Blockchain Platform: Solana (Program ID: 4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM).',
     'Smart Contract Language: Rust with Anchor framework.',
     'Backend: Node.js / Express.js with MongoDB (Mongoose ODM).',
     'Frontend: React 18 + Vite + TailwindCSS + Solana Wallet Adapter.',

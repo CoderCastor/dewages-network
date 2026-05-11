@@ -1,8 +1,10 @@
 import React from 'react';
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
 import Logo from '../common/Logo';
+import { useTranslation } from 'react-i18next';
 
 const Footer = () => {
+  const { t } = useTranslation();
   const footerLinks = {
     'Platform': [
       { label: 'How it Works', href: '#' },
@@ -40,7 +42,7 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <Logo className="text-white mb-4" />
             <p className="text-gray-400 mb-6 max-w-md">
-              Connecting skilled workers with employers across India. Build trust, earn fair wages, and grow your business with blockchain-powered transparency.
+              {t('footer.description')}
             </p>
             
             {/* Contact Info */}
@@ -83,7 +85,7 @@ const Footer = () => {
         {/* Bottom Section */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-400 text-sm mb-4 md:mb-0">
-            © 2024 DeWages. All rights reserved.
+            © 2024 DeWages. {t('footer.allRights')}
           </div>
 
           {/* Social Links */}

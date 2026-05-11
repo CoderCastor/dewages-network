@@ -27,6 +27,7 @@ import {
 import axios from "axios";
 import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
   Connection,
@@ -44,6 +45,7 @@ const JobListingCard = ({
   showApplyButton = false,
   onOTPUsed,
 }) => {
+  const { t } = useTranslation();
   const wallet = useWallet();
   const [submittingOTP, setSubmittingOTP] = useState(null);
   const [otpInput, setOtpInput] = useState({ start: "", end: "" });
@@ -491,7 +493,7 @@ const JobListingCard = ({
           <div className="flex items-center space-x-2">
             <DollarSign className="w-4 h-4 text-green-500" />
             <div>
-              <p className="text-xs text-gray-500">Payment</p>
+              <p className="text-xs text-gray-500">{t("common.payment")}</p>
               <p className="text-sm font-bold text-green-600">
                 {formatPayment(job.paymentAmount)} SOL
               </p>
@@ -501,7 +503,7 @@ const JobListingCard = ({
           <div className="flex items-center space-x-2">
             <Clock className="w-4 h-4 text-blue-500" />
             <div>
-              <p className="text-xs text-gray-500">Duration</p>
+              <p className="text-xs text-gray-500">{t("common.duration")}</p>
               <p className="text-sm font-medium text-gray-900">
                 {Math.ceil(job.durationHours / 8)} days
               </p>
@@ -511,7 +513,7 @@ const JobListingCard = ({
           <div className="flex items-center space-x-2">
             <MapPin className="w-4 h-4 text-purple-500" />
             <div>
-              <p className="text-xs text-gray-500">Location</p>
+              <p className="text-xs text-gray-500">{t("common.location")}</p>
               <p className="text-sm font-medium text-gray-900">
                 {job.location?.city || "N/A"}
               </p>
@@ -521,7 +523,7 @@ const JobListingCard = ({
           <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-orange-500" />
             <div>
-              <p className="text-xs text-gray-500">Posted</p>
+              <p className="text-xs text-gray-500">{t("common.posted")}</p>
               <p className="text-sm font-medium text-gray-900">
                 {formatDate(job.createdAt)}
               </p>
@@ -636,36 +638,95 @@ const JobListingCard = ({
             </div>
         )}
 
-        {/* Bug Fix #4: Dispute already raised — show OUTSIDE proofOfWork block so it renders on Dispute tab */}
-        {(job.status === "disputed" || (localDispute || job.dispute)?.status) && (
-          <div className="mt-3 bg-red-50 border-2 border-red-300 rounded-lg p-3 mb-2">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className="p-1.5 bg-red-200 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-red-700" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-red-900">⚠️ Dispute Raised</p>
-                <p className="text-xs text-red-600">
-                  {(localDispute || job.dispute)?.raisedBy === "worker"
-                    ? "Raised by you (worker)"
-                    : `Raised by the company`}
+        {/* Bug Fix #4: Dispute status — show resolved or open */}
+        {(() => {
+          const activeDispute = localDispute || job.dispute;
+
+          // ── Dispute resolved ──
+          if (activeDispute?.status && activeDispute.status.startsWith("resolved")) {
+            const isForWorker = activeDispute.status === "resolved_for_worker";
+            const isForEmployer = activeDispute.status === "resolved_for_employer";
+            const favorLabel = isForWorker
+              ? "Resolved in favor of Worker"
+              : isForEmployer
+              ? "Resolved in favor of Company"
+              : "Resolved — Split";
+            const favorColor = isForWorker
+              ? { bg: "bg-emerald-50", border: "border-emerald-400", icon: "bg-emerald-200", text: "text-emerald-800", sub: "text-emerald-600" }
+              : isForEmployer
+              ? { bg: "bg-blue-50", border: "border-blue-400", icon: "bg-blue-200", text: "text-blue-800", sub: "text-blue-600" }
+              : { bg: "bg-amber-50", border: "border-amber-400", icon: "bg-amber-200", text: "text-amber-800", sub: "text-amber-600" };
+
+            return (
+              <div className={`mt-3 ${favorColor.bg} border-2 ${favorColor.border} rounded-lg p-3 mb-2`}>
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className={`p-1.5 ${favorColor.icon} rounded-lg`}>
+                    <CheckCircle className={`w-4 h-4 ${favorColor.text}`} />
+                  </div>
+                  <div>
+                    <p className={`text-sm font-bold ${favorColor.text}`}>Dispute Resolved</p>
+                    <p className={`text-xs ${favorColor.sub}`}>{favorLabel}</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-2 border border-gray-200 text-sm space-y-1">
+                  <div>
+                    <p className="text-xs font-medium text-gray-700 mb-0.5">Original Reason:</p>
+                    <p className="text-xs text-gray-600">{activeDispute?.reason || "—"}</p>
+                  </div>
+                  {activeDispute?.resolution && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-700 mb-0.5">Resolution Notes:</p>
+                      <p className="text-xs text-gray-600">{activeDispute.resolution}</p>
+                    </div>
+                  )}
+                  {activeDispute?.resolvedAt && (
+                    <p className="text-xs text-gray-400 pt-1 border-t border-gray-100">
+                      Resolved on {new Date(activeDispute.resolvedAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+                <p className={`text-xs ${favorColor.sub} mt-2 flex items-center gap-1`}>
+                  <Shield className="w-3 h-3" /> Funds have been disbursed per resolution
                 </p>
               </div>
-            </div>
-            <div className="bg-white rounded-lg p-2 border border-red-200 mb-2">
-              <p className="text-xs font-medium text-red-800 mb-0.5">Reason:</p>
-              <p className="text-xs text-gray-700">{(localDispute || job.dispute)?.reason || "—"}</p>
-            </div>
-            {(localDispute || job.dispute)?.createdAt && (
-              <p className="text-xs text-red-500 mb-1">
-                Raised on: {new Date((localDispute || job.dispute).createdAt).toLocaleString()}
-              </p>
-            )}
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <Shield className="w-3 h-3" /> Funds frozen — Admin is reviewing
-            </p>
-          </div>
-        )}
+            );
+          }
+
+          // ── Dispute still open ──
+          if (job.status === "disputed" || (activeDispute?.status && activeDispute.status === "open")) {
+            return (
+              <div className="mt-3 bg-red-50 border-2 border-red-300 rounded-lg p-3 mb-2">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="p-1.5 bg-red-200 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-red-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-red-900">⚠️ Dispute Raised</p>
+                    <p className="text-xs text-red-600">
+                      {activeDispute?.raisedBy === "worker"
+                        ? "Raised by you (worker)"
+                        : `Raised by the company`}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-2 border border-red-200 mb-2">
+                  <p className="text-xs font-medium text-red-800 mb-0.5">Reason:</p>
+                  <p className="text-xs text-gray-700">{activeDispute?.reason || "—"}</p>
+                </div>
+                {activeDispute?.createdAt && (
+                  <p className="text-xs text-red-500 mb-1">
+                    Raised on: {new Date(activeDispute.createdAt).toLocaleString()}
+                  </p>
+                )}
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> Funds frozen — Admin is reviewing
+                </p>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
 
 
         {/* Dispute Period Active — show countdown + Raise Dispute */}

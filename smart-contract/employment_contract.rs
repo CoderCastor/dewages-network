@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ");
+declare_id!("4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM");
 
 const ADMIN_PUBKEY: &str = "5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ";
 

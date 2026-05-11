@@ -30,6 +30,8 @@ import axios from "axios";
 import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
 import idl from "../idl/employment_platform.json" with { type: "json" };
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 import { useNavigate } from "react-router";
 
 const CompanyProfilePage = () => {
@@ -181,6 +183,9 @@ const CompanyProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">

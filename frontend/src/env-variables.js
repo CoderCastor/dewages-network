@@ -6,7 +6,7 @@
 
 
 // export const RPC_URL ="https://boldest-dimensional-mountain.solana-devnet.quiknode.pro/87d55e45ec178d3120906deba2bedb75fc353b27/";
-export const RPC_URL ="http://127.0.0.1:8899"
+export const RPC_URL = "https://devnet.helius-rpc.com/?api-key=2ac5b659-b819-400e-990c-628e1b2582e9"
 export const BACKEND_URL = "http://localhost:8000/v1"
-export const PROGRAM_ID = "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+export const PROGRAM_ID = "4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM"
 // export const PROGRAM_ID = "6p2Ni8ZJ1mxYKvPd665tWKcNFEiFbc2cBhwf7Pmq1fJu"

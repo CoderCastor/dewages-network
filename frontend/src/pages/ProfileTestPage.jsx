@@ -3,63 +3,13 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
 import toast from 'react-hot-toast';
+import { PROGRAM_ID } from '../env-variables';
+import IDL from '../idl/employment_platform.json' with { type: 'json' };
 
-// Your deployed program ID
-const PROGRAM_ID = new PublicKey('6nkZkzy4P9MeYgmsNiN1ppMfYmXvJy2CKjb8obKZ9esG');
+// Program ID as PublicKey from env-variables
+const PROGRAM_ID_KEY = new PublicKey(PROGRAM_ID);
 
-// IDL for your program
-const IDL = {
-  version: "0.1.0",
-  name: "employment_platform",
-  instructions: [
-    {
-      name: "createUserProfile",
-      accounts: [
-        { name: "userProfile", isMut: true, isSigner: false },
-        { name: "user", isMut: true, isSigner: true },
-        { name: "systemProgram", isMut: false, isSigner: false }
-      ],
-      args: [
-        { name: "userType", type: { defined: "UserType" } },
-        { name: "name", type: "string" },
-        { name: "phone", type: "string" },
-        { name: "location", type: "string" }
-      ]
-    }
-  ],
-  accounts: [
-    {
-      name: "UserProfile",
-      type: {
-        kind: "struct",
-        fields: [
-          { name: "authority", type: "publicKey" },
-          { name: "userType", type: { defined: "UserType" } },
-          { name: "name", type: "string" },
-          { name: "phone", type: "string" },
-          { name: "location", type: "string" },
-          { name: "rating", type: "u64" },
-          { name: "totalJobs", type: "u64" },
-          { name: "totalEarnings", type: "u64" },
-          { name: "isActive", type: "bool" },
-          { name: "createdAt", type: "i64" }
-        ]
-      }
-    }
-  ],
-  types: [
-    {
-      name: "UserType",
-      type: {
-        kind: "enum",
-        variants: [
-          { name: "Worker" },
-          { name: "Employer" }
-        ]
-      }
-    }
-  ]
-};
+
 
 export default function ProfileTestPage() {
   const { connection } = useConnection();
@@ -103,12 +53,12 @@ export default function ProfileTestPage() {
 
     try {
       const provider = getProvider();
-      const program = new Program(IDL, PROGRAM_ID, provider);
+      const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       // Derive PDA for user profile
       const [userProfilePDA, bump] = await PublicKey.findProgramAddress(
         [Buffer.from('user_profile'), wallet.publicKey.toBuffer()],
-        PROGRAM_ID
+        PROGRAM_ID_KEY
       );
 
       console.log('Generated PDA:', userProfilePDA.toString());
@@ -168,12 +118,12 @@ export default function ProfileTestPage() {
 
     try {
       const provider = getProvider();
-      const program = new Program(IDL, PROGRAM_ID, provider);
+      const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       // Derive PDA for user profile
       const [userProfilePDA] = await PublicKey.findProgramAddress(
         [Buffer.from('user_profile'), wallet.publicKey.toBuffer()],
-        PROGRAM_ID
+        PROGRAM_ID_KEY
       );
 
       setPdaAddress(userProfilePDA.toString());

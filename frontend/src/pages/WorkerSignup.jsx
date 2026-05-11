@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -34,6 +35,8 @@ import { useWalletInformation } from "@/context/WalletContext";
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 
 const ExperienceLevelEnum = z.enum(["beginner", "intermediate", "experienced"]);
 
@@ -259,6 +262,8 @@ const WorkerSignupForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const { WalletAddress, isWalletVerified } = useWalletInformation();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     walletAddress: "",
@@ -421,8 +426,9 @@ const WorkerSignupForm = () => {
           else if (!phoneRegex.test(formData.phone))
             stepErrors.phone = "Invalid phone format";
 
-          if (
-            formData.email &&
+          if (!formData.email) {
+            stepErrors.email = "Email is required";
+          } else if (
             !z.string().email().safeParse(formData.email).success
           ) {
             stepErrors.email = "Invalid email format";
@@ -495,15 +501,30 @@ const WorkerSignupForm = () => {
 
   // Submit handler
   const onSubmit = async (e) => {
-    // e.preventDefault();
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
-    console.log(formData);
-    const res = await axios.post(`${BACKEND_URL}/worker/signup`, {
-      formData,
-      token: localStorage.getItem("token"),
-    });
-    console.log(res);
+    try {
+      console.log(formData);
+      const res = await axios.post(`${BACKEND_URL}/worker/signup`, {
+        formData,
+        token: localStorage.getItem("token"),
+      });
+      console.log(res);
+
+      if (res.data.message === "Worker profile created successfully") {
+        toast.success("Worker profile created successfully!");
+        setTimeout(() => {
+          navigate("/worker/signin");
+        }, 800);
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to create worker profile"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Toggle functions
@@ -593,7 +614,7 @@ const WorkerSignupForm = () => {
                 </div>
               </FormField>
 
-              <FormField label="Email Address (Optional)" error={errors.email}>
+              <FormField label="Email Address" required error={errors.email}>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
@@ -1213,6 +1234,9 @@ const WorkerSignupForm = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -1222,7 +1246,7 @@ const WorkerSignupForm = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl md:text-3xl font-bold text-purple-800 mb-2"
             >
-              Join Our Worker Network
+              {t("signup.workerTitle")}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: -10 }}
@@ -1230,7 +1254,7 @@ const WorkerSignupForm = () => {
               transition={{ delay: 0.1 }}
               className="text-gray-600 text-lg"
             >
-              Create your profile and start connecting with job opportunities
+              {t("signin.workerSubtitle")}
             </motion.p>
           </div>
 

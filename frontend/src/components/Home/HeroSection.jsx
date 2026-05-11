@@ -2,15 +2,18 @@ import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Users, Briefcase, Shield, TrendingUp } from "lucide-react";
-
-
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 
 const HeroSection = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
   const stats = [
-    { icon: Users, value: "10K+", label: "Active Workers" },
-    { icon: Briefcase, value: "5K+", label: "Jobs Completed" },
-    { icon: Shield, value: "100%", label: "Secure Payments" },
-    { icon: TrendingUp, value: "4.8★", label: "Average Rating" },
+    { icon: Users, value: "10K+", label: t("landing.activeWorkers") },
+    { icon: Briefcase, value: "5K+", label: t("landing.jobsCompleted") },
+    { icon: Shield, value: "100%", label: t("landing.securePayments") },
+    { icon: TrendingUp, value: "4.8★", label: t("landing.avgRating") },
   ];
 
   return (
@@ -25,47 +28,61 @@ const HeroSection = () => {
             variant="secondary"
             className="mb-6 px-4 py-2 text-sm font-medium bg-blue-100 text-blue-800 border-blue-200"
           >
-            Blockchain Secured
+            {t("landing.badge")}
           </Badge>
 
           {/* Main Heading */}
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-            Connect.{" "}
+            {t("landing.heading1")}{" "}
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Work.
+              {t("landing.heading2")}
             </span>{" "}
             <br />
-            Earn with Trust.
+            {t("landing.heading3")}
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Join India's most trusted platform where skilled workers meet
-            verified employers. Secure payments, fair wages, and transparent
-            work relationships powered by blockchain technology.
+            {t("landing.subtitle")}
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+          {/* CTA Buttons — 2×2 grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto mb-16">
             <Button
               size="lg"
-              className="w-full sm:w-auto px-8 py-4 text-lg font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-200"
+              className="w-full px-8 py-4 text-lg font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-200"
+              onClick={() => navigate("/worker/signup")}
             >
-              {/* <img src={WorkerLogo.src} alt="" /> */}
-              Signup as worker
+              {t("landing.signupWorker")}
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto px-8 py-4 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              className="w-full px-8 py-4 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              onClick={() => navigate("/company/signup")}
             >
-
-              Sign up as Company
+              {t("landing.signupCompany")}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full px-8 py-4 text-base font-medium border border-blue-300 text-blue-700 hover:bg-blue-50 transition-all duration-200"
+              onClick={() => navigate("/worker/signin")}
+            >
+              {t("landing.signinWorker")}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full px-8 py-4 text-base font-medium border border-purple-300 text-purple-700 hover:bg-purple-50 transition-all duration-200"
+              onClick={() => navigate("/company/signin")}
+            >
+              {t("landing.signinCompany")}
             </Button>
           </div>
 
           {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-4xl mx-auto">
             {stats.map((stat, index) => {
               const IconComponent = stat.icon;
               return (

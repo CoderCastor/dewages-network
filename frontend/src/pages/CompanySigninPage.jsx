@@ -17,12 +17,15 @@ import { useWalletInformation } from "@/context/WalletContext";
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 
 const CompanySigninPage = () => {
   const navigate = useNavigate();
   const { setVisible } = useWalletModal();
   const { publicKey, disconnect, connected, signMessage } = useWallet();
   const { setWalletAddress, setIsWalletVerified } = useWalletInformation();
+  const { t } = useTranslation();
 
   const [isVerified, setIsVerified] = useState("not-verified");
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -126,6 +129,9 @@ const CompanySigninPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-md">
         {/* Header */}
         <motion.div
@@ -137,10 +143,10 @@ const CompanySigninPage = () => {
             <Building className="w-8 h-8 text-blue-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Company Sign In
+            {t("signin.companyTitle")}
           </h1>
           <p className="text-gray-600">
-            Connect your wallet to access your company account
+            {t("signin.companySubtitle")}
           </p>
         </motion.div>
 
@@ -164,7 +170,7 @@ const CompanySigninPage = () => {
                     <CheckCircle className="w-5 h-5 text-blue-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-700">
-                        Wallet Connected
+                        {t("signin.walletConnected")}
                       </p>
                       <p className="text-xs text-gray-600 font-mono">
                         {pubkey.slice(0, 4)}...{pubkey.slice(-4)}
@@ -192,7 +198,7 @@ const CompanySigninPage = () => {
               }`}
             >
               <Wallet className="w-5 h-5" />
-              <span>{pubkey ? "Wallet Connected" : "Connect Wallet"}</span>
+              <span>{pubkey ? t("signin.walletConnected") : t("signin.connectWallet")}</span>
             </button>
 
             {/* Sign In Button */}
@@ -216,22 +222,22 @@ const CompanySigninPage = () => {
               {isSigningIn ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Signing In...</span>
+                  <span>{t("signin.signingIn")}</span>
                 </>
               ) : isVerified === "verified" ? (
                 <>
                   <CheckCircle className="w-5 h-5" />
-                  <span>Signed In Successfully</span>
+                  <span>{t("signin.signedInSuccess")}</span>
                 </>
               ) : isVerified === "failed" ? (
                 <>
                   <AlertCircle className="w-5 h-5" />
-                  <span>Sign In Failed - Retry</span>
+                  <span>{t("signin.signInFailed")}</span>
                 </>
               ) : (
                 <>
                   <Shield className="w-5 h-5" />
-                  <span>Sign In with Wallet</span>
+                  <span>{t("signin.signInWithWallet")}</span>
                 </>
               )}
             </button>
@@ -243,7 +249,7 @@ const CompanySigninPage = () => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-500">
-                  Don't have an account?
+                  {t("signin.dontHaveAccount")}
                 </span>
               </div>
             </div>
@@ -253,7 +259,7 @@ const CompanySigninPage = () => {
               onClick={() => navigate("/company/signup")}
               className="w-full flex items-center justify-center space-x-2 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-all duration-200"
             >
-              <span>Sign Up as Company</span>
+              <span>{t("signin.signUpAsCompany")}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -263,8 +269,7 @@ const CompanySigninPage = () => {
             <div className="flex items-start space-x-3 text-sm text-gray-600">
               <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <p>
-                Your wallet signature is used to verify your identity securely
-                without passwords.
+                {t("signin.walletSecurityNote")}
               </p>
             </div>
           </div>
@@ -281,7 +286,7 @@ const CompanySigninPage = () => {
             onClick={() => navigate("/worker/signin")}
             className="text-blue-600 hover:text-blue-700 text-sm font-medium"
           >
-            Sign in as Worker →
+            {t("signin.signInAsWorker")}
           </button>
         </motion.div>
       </div>

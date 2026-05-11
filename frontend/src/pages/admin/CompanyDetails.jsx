@@ -19,67 +19,12 @@ import {
   XCircle,
   Briefcase,
 } from "lucide-react";
-import { BACKEND_URL } from "@/env-variables";
+import { BACKEND_URL, PROGRAM_ID } from "@/env-variables";
+import IDL from "@/idl/employment_platform.json" with { type: "json" };
 import axios from "axios";
 
-// IMPORTANT: This must match your deployed program
-const PROGRAM_ID = new PublicKey(
-  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
-);
-
-// Updated IDL matching the new smart contract
-const IDL = {
-  version: "0.1.0",
-  name: "employment_platform",
-  instructions: [
-    {
-      name: "createUserProfile",
-      accounts: [
-        { name: "userProfile", isMut: true, isSigner: false },
-        { name: "targetUser", isMut: false, isSigner: false },
-        { name: "admin", isMut: true, isSigner: true },
-        { name: "systemProgram", isMut: false, isSigner: false },
-      ],
-      args: [
-        { name: "userType", type: { defined: "UserType" } },
-        { name: "name", type: "string" },
-        { name: "phone", type: "string" },
-        { name: "location", type: "string" },
-      ],
-    },
-  ],
-  accounts: [
-    {
-      name: "UserProfile",
-      type: {
-        kind: "struct",
-        fields: [
-          { name: "authority", type: "publicKey" },
-          { name: "userType", type: { defined: "UserType" } },
-          { name: "name", type: "string" },
-          { name: "phone", type: "string" },
-          { name: "location", type: "string" },
-          { name: "rating", type: "u64" },
-          { name: "totalJobs", type: "u64" },
-          { name: "totalEarnings", type: "u64" },
-          { name: "isActive", type: "bool" },
-          { name: "createdAt", type: "i64" },
-          { name: "verifiedByAdmin", type: "bool" },
-          { name: "verifiedAt", type: { option: "i64" } },
-        ],
-      },
-    },
-  ],
-  types: [
-    {
-      name: "UserType",
-      type: {
-        kind: "enum",
-        variants: [{ name: "Worker" }, { name: "Employer" }],
-      },
-    },
-  ],
-};
+// Program ID as PublicKey from env-variables
+const PROGRAM_ID_KEY = new PublicKey(PROGRAM_ID);
 
 export default function CompanyDetailPage() {
   const { walletAddress } = useParams();
@@ -189,12 +134,12 @@ export default function CompanyDetailPage() {
         { publicKey: null, signTransaction: null, signAllTransactions: null },
         { commitment: "confirmed" }
       );
-      const program = new Program(IDL, PROGRAM_ID, provider);
+      const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       const companyPublicKey = new PublicKey(company.walletAddress);
       const [userProfilePDA] = await PublicKey.findProgramAddress(
         [Buffer.from("user_profile"), companyPublicKey.toBuffer()],
-        PROGRAM_ID
+        PROGRAM_ID_KEY
       );
 
       setPdaAddress(userProfilePDA.toString());
@@ -251,7 +196,7 @@ export default function CompanyDetailPage() {
 
     try {
       const provider = getProvider();
-      const program = new Program(IDL, PROGRAM_ID, provider);
+      const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       // Convert company's wallet address to PublicKey
       const companyPublicKey = new PublicKey(company.walletAddress);
@@ -259,7 +204,7 @@ export default function CompanyDetailPage() {
       // Derive PDA for company profile
       const [userProfilePDA, bump] = await PublicKey.findProgramAddress(
         [Buffer.from("user_profile"), companyPublicKey.toBuffer()],
-        PROGRAM_ID
+        PROGRAM_ID_KEY
       );
 
       console.log("Admin wallet:", wallet.publicKey.toString());
@@ -273,9 +218,8 @@ export default function CompanyDetailPage() {
 
       // Prepare location string
       const location =
-        `${company.location?.city || ""}, ${
-          company.location?.state || ""
-        }`.trim() || "Unknown";
+        `${company.location?.city || ""}, ${company.location?.state || ""
+          }`.trim() || "Unknown";
 
       // Call create_user_profile instruction
       const tx = await program.methods
@@ -795,11 +739,10 @@ export default function CompanyDetailPage() {
                   <div>
                     <p className="text-sm text-slate-600 mb-1">Active Status</p>
                     <span
-                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                        company.isActive
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${company.isActive
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                        }`}
                     >
                       {company.isActive ? "Active" : "Inactive"}
                     </span>

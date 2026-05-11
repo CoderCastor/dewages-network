@@ -1,3 +1,4 @@
+import "./i18n";
 import { RouterProvider } from "react-router";
 import { Router } from "./router";
 import {

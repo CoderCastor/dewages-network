@@ -5,39 +5,107 @@
     {
       "name": "assignWorker",
       "accounts": [
-        { "name": "job", "isMut": true, "isSigner": false },
-        { "name": "escrow", "isMut": true, "isSigner": false },
-        { "name": "worker", "isMut": false, "isSigner": false },
-        { "name": "employer", "isMut": true, "isSigner": true }
+        {
+          "name": "job",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "worker",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "employer",
+          "isMut": true,
+          "isSigner": true
+        }
       ],
       "args": []
     },
     {
       "name": "createDispute",
       "accounts": [
-        { "name": "job", "isMut": true, "isSigner": false },
-        { "name": "dispute", "isMut": true, "isSigner": true },
-        { "name": "employer", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "job",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "dispute",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "employer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "reason", "type": "string" },
-        { "name": "evidence", "type": "string" }
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "evidence",
+          "type": "string"
+        }
       ]
     },
     {
       "name": "createUserProfile",
       "accounts": [
-        { "name": "userProfile", "isMut": true, "isSigner": false },
-        { "name": "targetUser", "isMut": false, "isSigner": false },
-        { "name": "admin", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "userProfile",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "targetUser",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "userType", "type": { "defined": "UserType" } },
-        { "name": "name", "type": "string" },
-        { "name": "phone", "type": "string" },
-        { "name": "location", "type": "string" }
+        {
+          "name": "userType",
+          "type": {
+            "defined": "UserType"
+          }
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "phone",
+          "type": "string"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        }
       ]
     },
     {
@@ -48,78 +116,244 @@
     {
       "name": "postJob",
       "accounts": [
-        { "name": "job", "isMut": true, "isSigner": true },
-        { "name": "escrow", "isMut": true, "isSigner": false },
-        { "name": "employer", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "job",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "employer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "title", "type": "string" },
-        { "name": "description", "type": "string" },
-        { "name": "category", "type": { "defined": "JobCategory" } },
-        { "name": "paymentAmount", "type": "u64" },
-        { "name": "location", "type": "string" },
-        { "name": "durationHours", "type": "u16" },
-        { "name": "requirements", "type": "string" }
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "type": {
+            "defined": "JobCategory"
+          }
+        },
+        {
+          "name": "paymentAmount",
+          "type": "u64"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "durationHours",
+          "type": "u16"
+        },
+        {
+          "name": "requirements",
+          "type": "string"
+        }
       ]
     },
     {
       "name": "rateUser",
       "accounts": [
-        { "name": "userRating", "isMut": true, "isSigner": true },
-        { "name": "job", "isMut": false, "isSigner": false },
-        { "name": "targetProfile", "isMut": true, "isSigner": false },
-        { "name": "targetUser", "isMut": false, "isSigner": false },
-        { "name": "rater", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "userRating",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "job",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "targetProfile",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "targetUser",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rater",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "rating", "type": "u8" },
-        { "name": "review", "type": "string" }
+        {
+          "name": "rating",
+          "type": "u8"
+        },
+        {
+          "name": "review",
+          "type": "string"
+        }
       ]
     },
     {
       "name": "releasePayment",
       "accounts": [
-        { "name": "job", "isMut": true, "isSigner": false },
-        { "name": "escrow", "isMut": true, "isSigner": false },
-        { "name": "worker", "isMut": true, "isSigner": false },
-        { "name": "employerProfile", "isMut": true, "isSigner": false },
-        { "name": "workerProfile", "isMut": true, "isSigner": false },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "job",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "worker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "employerProfile",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "workerProfile",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": []
     },
     {
       "name": "resolveDispute",
       "accounts": [
-        { "name": "job", "isMut": true, "isSigner": false },
-        { "name": "escrow", "isMut": true, "isSigner": false },
-        { "name": "dispute", "isMut": true, "isSigner": false },
-        { "name": "worker", "isMut": true, "isSigner": false },
-        { "name": "employer", "isMut": true, "isSigner": false },
-        { "name": "employerProfile", "isMut": true, "isSigner": false },
-        { "name": "workerProfile", "isMut": true, "isSigner": false },
-        { "name": "admin", "isMut": false, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "job",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "dispute",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "worker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "employer",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "employerProfile",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "workerProfile",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "resolution", "type": { "defined": "DisputeResolution" } },
-        { "name": "resolutionNotes", "type": "string" }
+        {
+          "name": "resolution",
+          "type": {
+            "defined": "DisputeResolution"
+          }
+        },
+        {
+          "name": "resolutionNotes",
+          "type": "string"
+        }
       ]
     },
     {
       "name": "submitProofOfWork",
       "accounts": [
-        { "name": "job", "isMut": true, "isSigner": false },
-        { "name": "proofOfWork", "isMut": true, "isSigner": true },
-        { "name": "worker", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "job",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "proofOfWork",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "worker",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "proofType", "type": { "defined": "ProofType" } },
-        { "name": "proofData", "type": "string" },
-        { "name": "gpsCoordinates", "type": { "option": "string" } }
+        {
+          "name": "proofType",
+          "type": {
+            "defined": "ProofType"
+          }
+        },
+        {
+          "name": "proofData",
+          "type": "string"
+        },
+        {
+          "name": "gpsCoordinates",
+          "type": {
+            "option": "string"
+          }
+        }
       ]
     }
   ],
@@ -129,15 +363,48 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "job", "type": "publicKey" },
-          { "name": "employer", "type": "publicKey" },
-          { "name": "worker", "type": "publicKey" },
-          { "name": "reason", "type": "string" },
-          { "name": "evidence", "type": "string" },
-          { "name": "status", "type": { "defined": "DisputeStatus" } },
-          { "name": "createdAt", "type": "i64" },
-          { "name": "resolvedAt", "type": { "option": "i64" } },
-          { "name": "resolution", "type": { "option": "string" } }
+          {
+            "name": "job",
+            "type": "publicKey"
+          },
+          {
+            "name": "employer",
+            "type": "publicKey"
+          },
+          {
+            "name": "worker",
+            "type": "publicKey"
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          },
+          {
+            "name": "evidence",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "DisputeStatus"
+            }
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "resolvedAt",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "resolution",
+            "type": {
+              "option": "string"
+            }
+          }
         ]
       }
     },
@@ -146,12 +413,30 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "job", "type": "publicKey" },
-          { "name": "employer", "type": "publicKey" },
-          { "name": "worker", "type": "publicKey" },
-          { "name": "amount", "type": "u64" },
-          { "name": "isLocked", "type": "bool" },
-          { "name": "createdAt", "type": "i64" }
+          {
+            "name": "job",
+            "type": "publicKey"
+          },
+          {
+            "name": "employer",
+            "type": "publicKey"
+          },
+          {
+            "name": "worker",
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "isLocked",
+            "type": "bool"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          }
         ]
       }
     },
@@ -160,20 +445,74 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "employer", "type": "publicKey" },
-          { "name": "worker", "type": { "option": "publicKey" } },
-          { "name": "title", "type": "string" },
-          { "name": "description", "type": "string" },
-          { "name": "category", "type": { "defined": "JobCategory" } },
-          { "name": "paymentAmount", "type": "u64" },
-          { "name": "location", "type": "string" },
-          { "name": "durationHours", "type": "u16" },
-          { "name": "requirements", "type": "string" },
-          { "name": "status", "type": { "defined": "JobStatus" } },
-          { "name": "createdAt", "type": "i64" },
-          { "name": "startedAt", "type": { "option": "i64" } },
-          { "name": "completedAt", "type": { "option": "i64" } },
-          { "name": "disputeDeadline", "type": { "option": "i64" } }
+          {
+            "name": "employer",
+            "type": "publicKey"
+          },
+          {
+            "name": "worker",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "category",
+            "type": {
+              "defined": "JobCategory"
+            }
+          },
+          {
+            "name": "paymentAmount",
+            "type": "u64"
+          },
+          {
+            "name": "location",
+            "type": "string"
+          },
+          {
+            "name": "durationHours",
+            "type": "u16"
+          },
+          {
+            "name": "requirements",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "JobStatus"
+            }
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "startedAt",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "completedAt",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "disputeDeadline",
+            "type": {
+              "option": "i64"
+            }
+          }
         ]
       }
     },
@@ -182,13 +521,38 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "job", "type": "publicKey" },
-          { "name": "worker", "type": "publicKey" },
-          { "name": "proofType", "type": { "defined": "ProofType" } },
-          { "name": "proofData", "type": "string" },
-          { "name": "gpsCoordinates", "type": { "option": "string" } },
-          { "name": "submittedAt", "type": "i64" },
-          { "name": "isVerified", "type": "bool" }
+          {
+            "name": "job",
+            "type": "publicKey"
+          },
+          {
+            "name": "worker",
+            "type": "publicKey"
+          },
+          {
+            "name": "proofType",
+            "type": {
+              "defined": "ProofType"
+            }
+          },
+          {
+            "name": "proofData",
+            "type": "string"
+          },
+          {
+            "name": "gpsCoordinates",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "submittedAt",
+            "type": "i64"
+          },
+          {
+            "name": "isVerified",
+            "type": "bool"
+          }
         ]
       }
     },
@@ -197,18 +561,58 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "authority", "type": "publicKey" },
-          { "name": "userType", "type": { "defined": "UserType" } },
-          { "name": "name", "type": "string" },
-          { "name": "phone", "type": "string" },
-          { "name": "location", "type": "string" },
-          { "name": "rating", "type": "u64" },
-          { "name": "totalJobs", "type": "u64" },
-          { "name": "totalEarnings", "type": "u64" },
-          { "name": "isActive", "type": "bool" },
-          { "name": "createdAt", "type": "i64" },
-          { "name": "verifiedByAdmin", "type": "bool" },
-          { "name": "verifiedAt", "type": { "option": "i64" } }
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "userType",
+            "type": {
+              "defined": "UserType"
+            }
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "phone",
+            "type": "string"
+          },
+          {
+            "name": "location",
+            "type": "string"
+          },
+          {
+            "name": "rating",
+            "type": "u64"
+          },
+          {
+            "name": "totalJobs",
+            "type": "u64"
+          },
+          {
+            "name": "totalEarnings",
+            "type": "u64"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "verifiedByAdmin",
+            "type": "bool"
+          },
+          {
+            "name": "verifiedAt",
+            "type": {
+              "option": "i64"
+            }
+          }
         ]
       }
     },
@@ -217,12 +621,30 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "rater", "type": "publicKey" },
-          { "name": "target", "type": "publicKey" },
-          { "name": "job", "type": "publicKey" },
-          { "name": "rating", "type": "u8" },
-          { "name": "review", "type": "string" },
-          { "name": "createdAt", "type": "i64" }
+          {
+            "name": "rater",
+            "type": "publicKey"
+          },
+          {
+            "name": "target",
+            "type": "publicKey"
+          },
+          {
+            "name": "job",
+            "type": "publicKey"
+          },
+          {
+            "name": "rating",
+            "type": "u8"
+          },
+          {
+            "name": "review",
+            "type": "string"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          }
         ]
       }
     }
@@ -233,14 +655,30 @@
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "Construction" },
-          { "name": "Delivery" },
-          { "name": "DomesticHelp" },
-          { "name": "EventStaffing" },
-          { "name": "Agriculture" },
-          { "name": "Cleaning" },
-          { "name": "Security" },
-          { "name": "Other" }
+          {
+            "name": "Construction"
+          },
+          {
+            "name": "Delivery"
+          },
+          {
+            "name": "DomesticHelp"
+          },
+          {
+            "name": "EventStaffing"
+          },
+          {
+            "name": "Agriculture"
+          },
+          {
+            "name": "Cleaning"
+          },
+          {
+            "name": "Security"
+          },
+          {
+            "name": "Other"
+          }
         ]
       }
     },
@@ -249,12 +687,24 @@
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "Open" },
-          { "name": "InProgress" },
-          { "name": "PendingVerification" },
-          { "name": "Completed" },
-          { "name": "Disputed" },
-          { "name": "Cancelled" }
+          {
+            "name": "Open"
+          },
+          {
+            "name": "InProgress"
+          },
+          {
+            "name": "PendingVerification"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Disputed"
+          },
+          {
+            "name": "Cancelled"
+          }
         ]
       }
     },
@@ -263,10 +713,18 @@
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "Photo" },
-          { "name": "QRCode" },
-          { "name": "OTP" },
-          { "name": "GPS" }
+          {
+            "name": "Photo"
+          },
+          {
+            "name": "QRCode"
+          },
+          {
+            "name": "OTP"
+          },
+          {
+            "name": "GPS"
+          }
         ]
       }
     },
@@ -275,11 +733,21 @@
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "Open" },
-          { "name": "UnderReview" },
-          { "name": "ResolvedForEmployer" },
-          { "name": "ResolvedForWorker" },
-          { "name": "Dismissed" }
+          {
+            "name": "Open"
+          },
+          {
+            "name": "UnderReview"
+          },
+          {
+            "name": "ResolvedForEmployer"
+          },
+          {
+            "name": "ResolvedForWorker"
+          },
+          {
+            "name": "Dismissed"
+          }
         ]
       }
     },
@@ -288,9 +756,15 @@
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "FavorWorker" },
-          { "name": "FavorEmployer" },
-          { "name": "Split" }
+          {
+            "name": "FavorWorker"
+          },
+          {
+            "name": "FavorEmployer"
+          },
+          {
+            "name": "Split"
+          }
         ]
       }
     },
@@ -298,7 +772,14 @@
       "name": "UserType",
       "type": {
         "kind": "enum",
-        "variants": [{ "name": "Worker" }, { "name": "Employer" }]
+        "variants": [
+          {
+            "name": "Worker"
+          },
+          {
+            "name": "Employer"
+          }
+        ]
       }
     }
   ],
@@ -318,7 +799,11 @@
       "name": "UnauthorizedWorker",
       "msg": "Unauthorized worker"
     },
-    { "code": 6003, "name": "InvalidJobStatus", "msg": "Invalid job status" },
+    {
+      "code": 6003,
+      "name": "InvalidJobStatus",
+      "msg": "Invalid job status"
+    },
     {
       "code": 6004,
       "name": "DisputePeriodActive",
@@ -356,6 +841,6 @@
     }
   ],
   "metadata": {
-    "address": "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
+    "address": "4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM"
   }
 }

@@ -20,73 +20,12 @@ import {
   Shield,
   XCircle,
 } from "lucide-react";
-import { BACKEND_URL } from "@/env-variables";
+import { BACKEND_URL, PROGRAM_ID } from "@/env-variables";
+import IDL from "@/idl/employment_platform.json" with { type: "json" };
 import axios from "axios";
 
-// IMPORTANT: This must match your deployed program
-// If using Solana Playground: Use the Program ID shown after deployment
-// If using local Anchor: Run 'anchor keys list' to get the correct ID
-const PROGRAM_ID = new PublicKey(
-  "3detc4UfYvz14NqdUdM6698ziVNMEEaSHHVhZiGKM4NJ"
-);
-
-// const PROGRAM_ID = new PublicKey(
-//   "7HDt4y5twRafCBrNBhvPBqLTjT8kb6wHwLrxXYRsFFSz"
-// );
-
-// Updated IDL matching the new smart contract
-const IDL = {
-  version: "0.1.0",
-  name: "employment_platform",
-  instructions: [
-    {
-      name: "createUserProfile",
-      accounts: [
-        { name: "userProfile", isMut: true, isSigner: false },
-        { name: "targetUser", isMut: false, isSigner: false }, // Changed from 'user'
-        { name: "admin", isMut: true, isSigner: true }, // Changed from 'user'
-        { name: "systemProgram", isMut: false, isSigner: false },
-      ],
-      args: [
-        { name: "userType", type: { defined: "UserType" } },
-        { name: "name", type: "string" },
-        { name: "phone", type: "string" },
-        { name: "location", type: "string" },
-      ],
-    },
-  ],
-  accounts: [
-    {
-      name: "UserProfile",
-      type: {
-        kind: "struct",
-        fields: [
-          { name: "authority", type: "publicKey" },
-          { name: "userType", type: { defined: "UserType" } },
-          { name: "name", type: "string" },
-          { name: "phone", type: "string" },
-          { name: "location", type: "string" },
-          { name: "rating", type: "u64" },
-          { name: "totalJobs", type: "u64" },
-          { name: "totalEarnings", type: "u64" },
-          { name: "isActive", type: "bool" },
-          { name: "createdAt", type: "i64" },
-          { name: "verifiedByAdmin", type: "bool" },
-          { name: "verifiedAt", type: { option: "i64" } },
-        ],
-      },
-    },
-  ],
-  types: [
-    {
-      name: "UserType",
-      type: {
-        kind: "enum",
-        variants: [{ name: "Worker" }, { name: "Employer" }],
-      },
-    },
-  ],
-};
+// Program ID as PublicKey from env-variables
+const PROGRAM_ID_KEY = new PublicKey(PROGRAM_ID);
 
 export default function WorkerDetailPage() {
   const { workerId } = useParams();
@@ -121,18 +60,18 @@ export default function WorkerDetailPage() {
   useEffect(() => {
     console.log(onChainData);
     async function verifyUserOnBackend() {
-      if (onChainData.verifiedByAdmin == true) {
+      if (onChainData?.verifiedByAdmin == true) {
         const res = await axios.post(
           `${BACKEND_URL}/admin/verify-worker/${workerId}`,
           {
-            verify: true,
+            isVerified: true,
             PDAAddress: pdaAddress,
           }
         );
         console.log(res.data)
       }
     }
-    verifyUserOnBackend()
+    if (onChainData) verifyUserOnBackend()
   }, [onChainData]);
 
   const fetchWorkerDetails = async () => {
@@ -186,12 +125,12 @@ export default function WorkerDetailPage() {
         { publicKey: null, signTransaction: null, signAllTransactions: null },
         { commitment: "confirmed" }
       );
-      const program = new Program(IDL, PROGRAM_ID, provider);
+      const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       const workerPublicKey = new PublicKey(worker.walletAddress);
       const [userProfilePDA] = await PublicKey.findProgramAddress(
         [Buffer.from("user_profile"), workerPublicKey.toBuffer()],
-        PROGRAM_ID
+        PROGRAM_ID_KEY
       );
 
       setPdaAddress(userProfilePDA.toString());
@@ -248,7 +187,7 @@ export default function WorkerDetailPage() {
 
     try {
       const provider = getProvider();
-      const program = new Program(IDL, PROGRAM_ID, provider);
+      const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       // Convert worker's wallet address to PublicKey
       const workerPublicKey = new PublicKey(worker.walletAddress);
@@ -256,7 +195,7 @@ export default function WorkerDetailPage() {
       // Derive PDA for worker profile (using target user's key)
       const [userProfilePDA, bump] = await PublicKey.findProgramAddress(
         [Buffer.from("user_profile"), workerPublicKey.toBuffer()],
-        PROGRAM_ID
+        PROGRAM_ID_KEY
       );
 
       console.log("Admin wallet:", wallet.publicKey.toString());
@@ -270,9 +209,8 @@ export default function WorkerDetailPage() {
 
       // Prepare location string
       const location =
-        `${worker.location?.city || ""}, ${
-          worker.location?.state || ""
-        }`.trim() || "Unknown";
+        `${worker.location?.city || ""}, ${worker.location?.state || ""
+          }`.trim() || "Unknown";
 
       // Call create_user_profile instruction
       // Admin signs the transaction and creates PDA for the worker
@@ -340,15 +278,15 @@ export default function WorkerDetailPage() {
   const updateVerificationStatus = async (pdaAddress) => {
     try {
       const token = localStorage.getItem("adminToken");
-      await fetch(`${BACKEND_URL}/admin/worker/${workerId}/verify`, {
-        method: "PUT",
+      await fetch(`${BACKEND_URL}/admin/verify-worker/${worker.walletAddress}`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           isVerified: true,
-          blockchainPDA: pdaAddress,
+          PDAAddress: pdaAddress,
         }),
       });
     } catch (error) {
@@ -792,11 +730,10 @@ export default function WorkerDetailPage() {
                   <div>
                     <p className="text-sm text-slate-600 mb-1">Active Status</p>
                     <span
-                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                        worker.isActive
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${worker.isActive
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
-                      }`}
+                        }`}
                     >
                       {worker.isActive ? "Active" : "Inactive"}
                     </span>

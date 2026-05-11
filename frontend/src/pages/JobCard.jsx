@@ -33,6 +33,7 @@ import { BACKEND_URL } from "@/env-variables";
 import toast from "react-hot-toast";
 import CompanyOTPGenerator from "@/components/common/CompanyOTPGenerator";
 import DisputeModal from "@/components/common/DisputeModal";
+import { useTranslation } from "react-i18next";
 
 const JobCard = ({
   job,
@@ -41,6 +42,7 @@ const JobCard = ({
   onOTPGenerated,
   onUpdate,
 }) => {
+  const { t } = useTranslation();
   const [generatingOTP, setGeneratingOTP] = useState(null);
   const [startOTP, setStartOTP] = useState(job.startJobOTP?.code || null);
   const [endOTP, setEndOTP] = useState(job.endJobOTP?.code || null);
@@ -589,8 +591,58 @@ const JobCard = ({
   const renderDisputePeriodStatus = () => {
     const activeDispute = localDispute || job.dispute;
 
-    // ── Dispute already raised ──────────────────────────────────────────────
-    if (job.status === "disputed" || activeDispute?.status) {
+    // ── Dispute resolved ────────────────────────────────────────────────────
+    if (activeDispute?.status && activeDispute.status.startsWith("resolved")) {
+      const isForWorker = activeDispute.status === "resolved_for_worker";
+      const isForEmployer = activeDispute.status === "resolved_for_employer";
+      const favorLabel = isForWorker
+        ? "Resolved in favor of Worker"
+        : isForEmployer
+        ? "Resolved in favor of Company"
+        : "Resolved — Split";
+      const favorColor = isForWorker
+        ? { bg: "bg-emerald-50", border: "border-emerald-400", icon: "bg-emerald-200", text: "text-emerald-800", sub: "text-emerald-600" }
+        : isForEmployer
+        ? { bg: "bg-blue-50", border: "border-blue-400", icon: "bg-blue-200", text: "text-blue-800", sub: "text-blue-600" }
+        : { bg: "bg-amber-50", border: "border-amber-400", icon: "bg-amber-200", text: "text-amber-800", sub: "text-amber-600" };
+
+      return (
+        <div className={`${favorColor.bg} border-2 ${favorColor.border} rounded-lg p-4`}>
+          <div className="flex items-center space-x-3 mb-3">
+            <div className={`p-2 ${favorColor.icon} rounded-lg`}>
+              <CheckCircle className={`w-5 h-5 ${favorColor.text}`} />
+            </div>
+            <div>
+              <p className={`text-sm font-bold ${favorColor.text}`}>Dispute Resolved</p>
+              <p className={`text-xs ${favorColor.sub}`}>{favorLabel}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-200 text-sm space-y-2">
+            <div>
+              <p className="font-medium text-gray-700 mb-1">Original Reason:</p>
+              <p className="text-xs text-gray-600">{activeDispute?.reason || "—"}</p>
+            </div>
+            {activeDispute?.resolution && (
+              <div>
+                <p className="font-medium text-gray-700 mb-1">Resolution Notes:</p>
+                <p className="text-xs text-gray-600">{activeDispute.resolution}</p>
+              </div>
+            )}
+            {activeDispute?.resolvedAt && (
+              <p className="text-xs text-gray-400 pt-1 border-t border-gray-100">
+                Resolved on {new Date(activeDispute.resolvedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+          </div>
+          <p className={`text-xs ${favorColor.sub} mt-3 flex items-center gap-1`}>
+            <Shield className="w-3 h-3" /> Funds have been disbursed per resolution
+          </p>
+        </div>
+      );
+    }
+
+    // ── Dispute still open (under review) ───────────────────────────────────
+    if (job.status === "disputed" || (activeDispute?.status && activeDispute.status === "open")) {
       const raisedBy = activeDispute?.raisedBy;
       const isMyDispute = raisedBy === "company";
       return (
@@ -765,73 +817,73 @@ const JobCard = ({
         className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden"
       >
       {/* Header */}
-      <div className="p-6 pb-4">
-        <div className="flex items-start justify-between mb-3">
+      <div className="p-4 pb-3">
+        <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+            <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">
               {job.title}
             </h3>
-            <p className="text-gray-600 text-sm line-clamp-2">
+            <p className="text-gray-600 text-xs line-clamp-1">
               {job.description}
             </p>
           </div>
         </div>
 
         {/* Status & Category Badges */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <span
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${statusConfig.color}`}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusConfig.color}`}
           >
-            <StatusIcon size={12} />
+            <StatusIcon size={10} />
             {statusConfig.label}
           </span>
           <span
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(
               job.category
             )}`}
           >
-            <Briefcase size={12} />
+            <Briefcase size={10} />
             {job.category.replace("_", " ").toUpperCase()}
           </span>
         </div>
 
         {/* Job Details Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="flex items-start space-x-2">
-            <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-gray-500">Location</p>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-xs text-gray-500">{t("common.location")}</p>
+              <p className="text-xs font-medium text-gray-900">
                 {job.location?.city || "N/A"}
               </p>
             </div>
           </div>
 
           <div className="flex items-start space-x-2">
-            <DollarSign className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+            <DollarSign className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-gray-500">Payment</p>
-              <p className="text-sm font-bold text-green-600">
+              <p className="text-xs text-gray-500">{t("common.payment")}</p>
+              <p className="text-xs font-bold text-green-600">
                 {formatPayment(job.paymentAmount)} SOL
               </p>
             </div>
           </div>
 
           <div className="flex items-start space-x-2">
-            <Clock className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+            <Clock className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-gray-500">Duration</p>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-xs text-gray-500">{t("common.duration")}</p>
+              <p className="text-xs font-medium text-gray-900">
                 {calculateDays(job.durationHours)}
               </p>
             </div>
           </div>
 
           <div className="flex items-start space-x-2">
-            <Calendar className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
+            <Calendar className="w-3.5 h-3.5 text-purple-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-gray-500">Posted</p>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-xs text-gray-500">{t("common.posted")}</p>
+              <p className="text-xs font-medium text-gray-900">
                 {formatDate(job.createdAt)}
               </p>
             </div>
@@ -958,9 +1010,9 @@ const JobCard = ({
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
+      <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
-          Click to view full details
+          {t("common.viewDetails")}
         </p>
       </div>
     </motion.div>

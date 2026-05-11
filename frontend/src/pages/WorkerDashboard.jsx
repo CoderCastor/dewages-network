@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Briefcase, Clock, CheckCircle, XCircle, TrendingUp,
-  Search, Filter, AlertTriangle, UserCircle,
+  Search, Filter, AlertTriangle, UserCircle, LogOut,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
@@ -13,6 +13,8 @@ import JobListingCard from "./JobListingCard";
 import CompanyInfoModal from "./CompanyInfoModal";
 import JobDetailsModalWorker from "./JobDetailsModalWorker";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 
 const ACTIVE_CLASSES = {
   blue: "border-blue-500 text-blue-600",
@@ -31,30 +33,31 @@ const TAB_ENDPOINTS = {
   rejected:   "/job/worker/rejected",
 };
 
-const TABS = [
-  { id: "active",     label: "Available Jobs", icon: Briefcase,     color: "blue"   },
-  { id: "applied",    label: "Applied",        icon: Clock,          color: "orange" },
-  { id: "inProgress", label: "In Progress",    icon: TrendingUp,     color: "orange" },
-  { id: "completed",  label: "Completed",      icon: CheckCircle,    color: "green"  },
-  { id: "disputed",   label: "Dispute",        icon: AlertTriangle,  color: "purple" },
-  { id: "rejected",   label: "Rejected",       icon: XCircle,        color: "red"    },
-];
-
-const CATEGORIES = [
-  { value: "all",           label: "All Categories" },
-  { value: "construction",  label: "Construction"   },
-  { value: "delivery",      label: "Delivery"       },
-  { value: "domestic_help", label: "Domestic Help"  },
-  { value: "event_staffing",label: "Event Staffing" },
-  { value: "agriculture",   label: "Agriculture"    },
-  { value: "cleaning",      label: "Cleaning"       },
-  { value: "security",      label: "Security"       },
-  { value: "other",         label: "Other"          },
-];
-
 const WorkerDashboard = () => {
-  const { publicKey } = useWallet();
+  const { publicKey, disconnect } = useWallet();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+
+  const TABS = [
+    { id: "active",     label: t("worker.availableJobs"), icon: Briefcase,     color: "blue"   },
+    { id: "applied",    label: t("worker.applied"),       icon: Clock,          color: "orange" },
+    { id: "inProgress", label: t("worker.inProgress"),    icon: TrendingUp,     color: "orange" },
+    { id: "completed",  label: t("worker.completed"),     icon: CheckCircle,    color: "green"  },
+    { id: "disputed",   label: t("worker.dispute"),       icon: AlertTriangle,  color: "purple" },
+    { id: "rejected",   label: t("worker.rejected"),      icon: XCircle,        color: "red"    },
+  ];
+
+  const CATEGORIES = [
+    { value: "all",           label: t("worker.allCategories") },
+    { value: "construction",  label: "Construction"   },
+    { value: "delivery",      label: "Delivery"       },
+    { value: "domestic_help", label: "Domestic Help"  },
+    { value: "event_staffing",label: "Event Staffing" },
+    { value: "agriculture",   label: "Agriculture"    },
+    { value: "cleaning",      label: "Cleaning"       },
+    { value: "security",      label: "Security"       },
+    { value: "other",         label: "Other"          },
+  ];
 
   const [activeTab, setActiveTab]         = useState("active");
   const [searchTerm, setSearchTerm]       = useState("");
@@ -81,6 +84,15 @@ const WorkerDashboard = () => {
 
   // Track which tabs have already been fully loaded
   const loadedTabs = useRef(new Set());
+
+  const handleLogout = async () => {
+    try {
+      await disconnect();
+    } catch (e) { /* ignore */ }
+    localStorage.removeItem("token");
+    toast.success("Logged out successfully");
+    navigate("/");
+  };
 
   // ─── On mount: fetch ALL tabs in parallel so counts are correct immediately ──
   useEffect(() => {
@@ -232,16 +244,26 @@ const WorkerDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Worker Dashboard</h1>
-              <p className="text-gray-600">Find and manage your jobs</p>
+              <h1 className="text-3xl font-bold text-gray-900">{t("worker.dashboard")}</h1>
+              <p className="text-gray-600">{t("worker.findJobs")}</p>
             </div>
-            <button
-              onClick={() => navigate("/worker/profile")}
-              className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              <UserCircle className="w-5 h-5" />
-              <span className="font-semibold">View Profile</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              <LanguageSwitcher />
+              <button
+                onClick={() => navigate("/worker/profile")}
+                className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <UserCircle className="w-5 h-5" />
+                <span className="font-semibold">{t("worker.viewProfile")}</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 shadow-sm"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-semibold">{t("worker.logout")}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -286,7 +308,7 @@ const WorkerDashboard = () => {
             <div className="mx-6 mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg flex items-center space-x-3">
               <AlertTriangle className="w-5 h-5 text-purple-600 flex-shrink-0" />
               <p className="text-sm text-purple-800">
-                <span className="font-semibold">Dispute period frozen.</span> Funds are held in escrow. An admin will review and resolve these disputes.
+                <span className="font-semibold">{t("worker.disputeBanner").split(".")[0]}.</span> {t("worker.disputeBanner").split(".").slice(1).join(".")}
               </p>
             </div>
           )}
@@ -299,7 +321,7 @@ const WorkerDashboard = () => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
-                    placeholder="Search jobs by title, location..."
+                    placeholder={t("worker.searchJobs")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -328,11 +350,11 @@ const WorkerDashboard = () => {
             ) : filteredJobs.length === 0 ? (
               <div className="text-center py-12">
                 <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No jobs found</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("worker.noJobsFound")}</h3>
                 <p className="text-gray-500">
                   {activeTab === "active" && (searchTerm || categoryFilter !== "all")
-                    ? "Try adjusting your search or filters"
-                    : `No ${TABS.find(t => t.id === activeTab)?.label.toLowerCase() || activeTab} jobs yet`}
+                    ? t("worker.adjustFilters")
+                    : `${t("worker.noJobsFound")}`}
                 </p>
               </div>
             ) : (

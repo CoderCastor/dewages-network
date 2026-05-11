@@ -10,6 +10,7 @@ import {
   TrendingUp,
   AlertTriangle,
   UserCircle,
+  LogOut,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
@@ -19,6 +20,8 @@ import PostJobModal from "./PostJobModal";
 import JobCard from "./JobCard";
 import JobDetailsModal from "./JobDetailsModal";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 
 const ACTIVE_CLASSES = {
   blue: "border-blue-500 text-blue-600",
@@ -29,8 +32,9 @@ const ACTIVE_CLASSES = {
 };
 
 const CompanyDashboard = () => {
-  const { publicKey } = useWallet();
+  const { publicKey, disconnect } = useWallet();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState("active");
   const [showPostJobModal, setShowPostJobModal] = useState(false);
@@ -56,12 +60,21 @@ const CompanyDashboard = () => {
   });
 
   const tabs = [
-    { id: "active", label: "Active Jobs", icon: Briefcase, color: "blue" },
-    { id: "inProgress", label: "In Progress", icon: Clock, color: "orange" },
-    { id: "completed", label: "Completed", icon: CheckCircle, color: "green" },
-    { id: "disputed", label: "Dispute", icon: AlertTriangle, color: "purple" },
-    { id: "rejected", label: "Rejected", icon: XCircle, color: "red" },
+    { id: "active", label: t("company.activeJobs"), icon: Briefcase, color: "blue" },
+    { id: "inProgress", label: t("company.inProgress"), icon: Clock, color: "orange" },
+    { id: "completed", label: t("company.completed"), icon: CheckCircle, color: "green" },
+    { id: "disputed", label: t("company.dispute"), icon: AlertTriangle, color: "purple" },
+    { id: "rejected", label: t("company.rejected"), icon: XCircle, color: "red" },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await disconnect();
+    } catch (e) { /* ignore */ }
+    localStorage.removeItem("token");
+    toast.success("Logged out successfully");
+    navigate("/");
+  };
 
   useEffect(() => {
     if (publicKey) {
@@ -154,23 +167,31 @@ const CompanyDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Company Dashboard</h1>
-              <p className="text-gray-600">Manage your job postings</p>
+              <h1 className="text-3xl font-bold text-gray-900">{t("company.dashboard")}</h1>
+              <p className="text-gray-600">{t("company.manageJobs")}</p>
             </div>
             <div className="flex items-center space-x-3">
+              <LanguageSwitcher />
               <button
                 onClick={() => navigate("/company/profile")}
                 className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 <UserCircle className="w-5 h-5" />
-                <span className="font-semibold">View Profile</span>
+                <span className="font-semibold">{t("company.viewProfile")}</span>
               </button>
               <button
                 onClick={() => setShowPostJobModal(true)}
                 className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 <Plus className="w-5 h-5" />
-                <span className="font-semibold">Post New Job</span>
+                <span className="font-semibold">{t("company.postNewJob")}</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 shadow-sm"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-semibold">{t("company.logout")}</span>
               </button>
             </div>
           </div>
@@ -181,11 +202,11 @@ const CompanyDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           {[
-            { label: "Total Jobs", value: stats.totalJobs, icon: Briefcase, bg: "bg-blue-100", iconColor: "text-blue-600" },
-            { label: "Active", value: stats.activeJobs, icon: TrendingUp, bg: "bg-blue-100", iconColor: "text-blue-600", valueColor: "text-blue-600" },
-            { label: "In Progress", value: stats.inProgress, icon: Clock, bg: "bg-orange-100", iconColor: "text-orange-600", valueColor: "text-orange-600" },
-            { label: "Completed", value: stats.completed, icon: CheckCircle, bg: "bg-green-100", iconColor: "text-green-600", valueColor: "text-green-600" },
-            { label: "Applications", value: stats.totalApplications, icon: Users, bg: "bg-purple-100", iconColor: "text-purple-600", valueColor: "text-purple-600" },
+            { label: t("company.totalJobs"), value: stats.totalJobs, icon: Briefcase, bg: "bg-blue-100", iconColor: "text-blue-600" },
+            { label: t("company.active"), value: stats.activeJobs, icon: TrendingUp, bg: "bg-blue-100", iconColor: "text-blue-600", valueColor: "text-blue-600" },
+            { label: t("company.inProgress"), value: stats.inProgress, icon: Clock, bg: "bg-orange-100", iconColor: "text-orange-600", valueColor: "text-orange-600" },
+            { label: t("company.completed"), value: stats.completed, icon: CheckCircle, bg: "bg-green-100", iconColor: "text-green-600", valueColor: "text-green-600" },
+            { label: t("company.applications"), value: stats.totalApplications, icon: Users, bg: "bg-purple-100", iconColor: "text-purple-600", valueColor: "text-purple-600" },
           ].map((stat, idx) => (
             <motion.div
               key={stat.label}
@@ -252,7 +273,7 @@ const CompanyDashboard = () => {
               <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg flex items-center space-x-3">
                 <AlertTriangle className="w-5 h-5 text-purple-600 flex-shrink-0" />
                 <p className="text-sm text-purple-800">
-                  <span className="font-semibold">Dispute period frozen.</span> Funds are held in escrow. An admin will review and resolve these disputes.
+                <span className="font-semibold">{t("company.disputeBanner").split(".")[0]}.</span> {t("company.disputeBanner").split(".").slice(1).join(".")}
                 </p>
               </div>
             )}
@@ -264,11 +285,11 @@ const CompanyDashboard = () => {
             ) : currentJobs.length === 0 ? (
               <div className="text-center py-12">
                 <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No jobs found</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("company.noJobsFound")}</h3>
                 <p className="text-gray-600 mb-6">
                   {activeTab === "active"
-                    ? "Post your first job to get started"
-                    : `No ${activeTab.replace(/([A-Z])/g, " $1").toLowerCase()} jobs yet`}
+                    ? t("company.postFirst")
+                    : t("company.noJobsFound")}
                 </p>
                 {activeTab === "active" && (
                   <button
