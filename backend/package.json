@@ -9,7 +9,8 @@
     "test:integration": "NODE_OPTIONS='--experimental-vm-modules' npx jest --config tests/jest.config.js tests/integration/",
     "test:system": "NODE_OPTIONS='--experimental-vm-modules' npx jest --config tests/jest.config.js tests/system/",
     "dev": "node app.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "build": "echo 'No build step required'"
   },
   "keywords": [],
   "author": "",
