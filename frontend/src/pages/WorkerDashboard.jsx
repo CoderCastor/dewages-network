@@ -242,25 +242,25 @@ const WorkerDashboard = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-6 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{t("worker.dashboard")}</h1>
-              <p className="text-gray-600">{t("worker.findJobs")}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t("worker.dashboard")}</h1>
+              <p className="text-sm sm:text-base text-gray-600">{t("worker.findJobs")}</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
               <LanguageSwitcher />
               <button
                 onClick={() => navigate("/worker/profile")}
-                className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                className="flex items-center space-x-2 px-3 sm:px-5 py-2 sm:py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base"
               >
-                <UserCircle className="w-5 h-5" />
+                <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="font-semibold">{t("worker.viewProfile")}</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 shadow-sm"
+                className="flex items-center space-x-2 px-3 sm:px-5 py-2 sm:py-3 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 shadow-sm text-sm sm:text-base"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="font-semibold">{t("worker.logout")}</span>
               </button>
             </div>

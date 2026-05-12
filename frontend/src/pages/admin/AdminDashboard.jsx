@@ -267,16 +267,16 @@ export default function AdminDashboard() {
         className="bg-white shadow-lg border-b border-slate-200"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center gap-3">
               <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2 rounded-lg">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">
+                <h1 className="text-base sm:text-xl font-bold text-slate-800">
                   Admin Dashboard
                 </h1>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 hidden sm:block">
                   Platform Management System
                 </p>
               </div>
@@ -315,21 +315,22 @@ export default function AdminDashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="flex gap-4 mb-8 bg-white rounded-xl shadow-md p-2"
+          className="flex gap-2 sm:gap-4 mb-8 bg-white rounded-xl shadow-md p-2 overflow-x-auto scrollbar-hide"
         >
           <button
             onClick={() => {
               setActiveTab("workers");
               setSearchQuery("");
             }}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+            className={`flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all transform hover:scale-105 text-sm sm:text-base whitespace-nowrap ${
               activeTab === "workers"
                 ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"
                 : "text-slate-700 hover:bg-slate-100"
             }`}
           >
-            <Users className="w-5 h-5" />
-            <span>Workers</span>
+            <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Workers</span>
+            <span className="sm:hidden">Work</span>
             <span
               className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
                 activeTab === "workers"
@@ -343,14 +344,15 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => { setActiveTab("companies"); setSearchQuery(""); }}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+            className={`flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all transform hover:scale-105 text-sm sm:text-base whitespace-nowrap ${
               activeTab === "companies"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg"
                 : "text-slate-700 hover:bg-slate-100"
             }`}
           >
-            <Building2 className="w-5 h-5" />
-            <span>Companies</span>
+            <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Companies</span>
+            <span className="sm:hidden">Comp</span>
             <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
               activeTab === "companies" ? "bg-white text-blue-600" : "bg-slate-200 text-slate-700"
             }`}>{companyStats.total}</span>
@@ -358,14 +360,15 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => { setActiveTab("disputes"); setSearchQuery(""); fetchDisputes(); }}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+            className={`flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all transform hover:scale-105 text-sm sm:text-base whitespace-nowrap ${
               activeTab === "disputes"
                 ? "bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg"
                 : "text-slate-700 hover:bg-slate-100"
             }`}
           >
-            <AlertTriangle className="w-5 h-5" />
-            <span>Disputes</span>
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Disputes</span>
+            <span className="sm:hidden">Disp</span>
             <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
               activeTab === "disputes" ? "bg-white text-red-600" : "bg-red-100 text-red-700"
             }`}>{disputes.length}</span>
@@ -373,14 +376,15 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => { setActiveTab("history"); setSearchQuery(""); fetchDisputeHistory(); }}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+            className={`flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all transform hover:scale-105 text-sm sm:text-base whitespace-nowrap ${
               activeTab === "history"
                 ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white shadow-lg"
                 : "text-slate-700 hover:bg-slate-100"
             }`}
           >
-            <CheckCircle className="w-5 h-5" />
-            <span>History</span>
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">History</span>
+            <span className="sm:hidden">Hist</span>
             <span className={`ml-2 px-3 py-1 rounded-full text-xs font-bold ${
               activeTab === "history" ? "bg-white text-slate-700" : "bg-slate-200 text-slate-700"
             }`}>{disputeHistory.length}</span>

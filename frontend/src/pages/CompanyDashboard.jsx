@@ -165,32 +165,32 @@ const CompanyDashboard = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-6 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{t("company.dashboard")}</h1>
-              <p className="text-gray-600">{t("company.manageJobs")}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t("company.dashboard")}</h1>
+              <p className="text-sm sm:text-base text-gray-600">{t("company.manageJobs")}</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
               <LanguageSwitcher />
               <button
                 onClick={() => navigate("/company/profile")}
-                className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                className="flex items-center space-x-2 px-3 sm:px-5 py-2 sm:py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base"
               >
-                <UserCircle className="w-5 h-5" />
+                <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="font-semibold">{t("company.viewProfile")}</span>
               </button>
               <button
                 onClick={() => setShowPostJobModal(true)}
-                className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                className="flex items-center space-x-2 px-3 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm sm:text-base"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="font-semibold">{t("company.postNewJob")}</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 px-5 py-3 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 shadow-sm"
+                className="flex items-center space-x-2 px-3 sm:px-5 py-2 sm:py-3 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 shadow-sm text-sm sm:text-base"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="font-semibold">{t("company.logout")}</span>
               </button>
             </div>
@@ -200,7 +200,7 @@ const CompanyDashboard = () => {
 
       {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
           {[
             { label: t("company.totalJobs"), value: stats.totalJobs, icon: Briefcase, bg: "bg-blue-100", iconColor: "text-blue-600" },
             { label: t("company.active"), value: stats.activeJobs, icon: TrendingUp, bg: "bg-blue-100", iconColor: "text-blue-600", valueColor: "text-blue-600" },
@@ -213,15 +213,15 @@ const CompanyDashboard = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+              className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className={`text-2xl font-bold ${stat.valueColor || "text-gray-900"}`}>{stat.value}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{stat.label}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${stat.valueColor || "text-gray-900"}`}>{stat.value}</p>
                 </div>
-                <div className={`p-3 ${stat.bg} rounded-full`}>
-                  <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
+                <div className={`p-2 sm:p-3 ${stat.bg} rounded-full`}>
+                  <stat.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${stat.iconColor}`} />
                 </div>
               </div>
             </motion.div>
@@ -231,7 +231,7 @@ const CompanyDashboard = () => {
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
+            <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 overflow-x-auto scrollbar-hide" aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const count = tab.id === "disputed"
