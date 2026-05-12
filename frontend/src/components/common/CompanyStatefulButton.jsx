@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { ButtonStateful } from "./stateful-button";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useWalletModal, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { CircleOff } from "lucide-react";
 import { useWalletInformation } from "@/context/WalletContext";
@@ -108,26 +108,17 @@ export function StatefulButton() {
         </button>
       )}
 
-      {/* wallet connect button - ALWAYS visible */}
-
-      {/* <Button
-        className={`h-10 flex justify-center bg-purple-500 ${
-          pubkey ? "bg-emerald-500" : "bg-purple-500"
-        }`}
-        onClick={handleClick2}
-      >
-        {pubkey ? "Wallet Connected" : "Connect your wallet"}
-      </Button> */}
-      <Button
-        onClick={handleClick2}
-        className={`flex min-w-[120px] text-md cursor-pointer items-center justify-center gap-2 rounded-full bg-purple-500 px-4 py-5 font-medium hover:bg-purple-600 text-white ring-offset-2 transition duration-200 hover:ring-2 hover:ring-purple-500 dark:ring-offset-black ${
-          pubkey
-            ? "bg-emerald-500 hover:bg-emerald-700 hover:ring-0 transition-all duration-500"
-            : "bg-purple-500"
-        }`}
-      >
-        {pubkey ? "Wallet Connected" : "Connect your wallet"}
-      </Button>
+      {/* wallet connect button — WalletMultiButton handles mobile deep links */}
+      {!pubkey ? (
+        <WalletMultiButton className="!flex !min-w-[120px] !text-md !cursor-pointer !items-center !justify-center !gap-2 !rounded-full !bg-purple-500 !px-4 !py-3 !font-medium hover:!bg-purple-600 !text-white !ring-offset-2 !transition !duration-200 hover:!ring-2 hover:!ring-purple-500 !h-auto" />
+      ) : (
+        <Button
+          onClick={handleClick2}
+          className="flex min-w-[120px] text-md cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-5 font-medium hover:bg-emerald-700 text-white ring-offset-2 transition-all duration-500 hover:ring-0 dark:ring-offset-black"
+        >
+          Wallet Connected
+        </Button>
+      )}
 
       <ButtonStateful
         className={` ${isVerified === "not-verified" && "bg-purple-500"} ${

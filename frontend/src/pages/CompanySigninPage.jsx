@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useWalletModal, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useWalletInformation } from "@/context/WalletContext";
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
@@ -188,18 +188,19 @@ const CompanySigninPage = () => {
             )}
 
             {/* Connect Wallet Button */}
-            <button
-              onClick={handleConnectWallet}
-              disabled={!!pubkey}
-              className={`w-full flex items-center justify-center space-x-3 px-6 py-4 rounded-lg font-medium transition-all duration-200 ${
-                pubkey
-                  ? "bg-green-500 text-white cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg"
-              }`}
-            >
-              <Wallet className="w-5 h-5" />
-              <span>{pubkey ? t("signin.walletConnected") : t("signin.connectWallet")}</span>
-            </button>
+            {!pubkey ? (
+              <div className="flex justify-center">
+                <WalletMultiButton className="!w-full !flex !items-center !justify-center !space-x-3 !px-6 !py-4 !rounded-lg !font-medium !transition-all !duration-200 !bg-blue-600 hover:!bg-blue-700 !text-white hover:!shadow-lg !text-base !h-auto" />
+              </div>
+            ) : (
+              <button
+                disabled
+                className="w-full flex items-center justify-center space-x-3 px-6 py-4 rounded-lg font-medium bg-green-500 text-white cursor-not-allowed"
+              >
+                <Wallet className="w-5 h-5" />
+                <span>{t("signin.walletConnected")}</span>
+              </button>
+            )}
 
             {/* Sign In Button */}
             <button
