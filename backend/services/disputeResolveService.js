@@ -69,12 +69,23 @@ function encodeBorshString(str) {
 }
 
 function loadRelayerKeypair() {
-  const keypairPath = process.env.HOME + "/.config/solana/id.json";
-  if (!fs.existsSync(keypairPath)) {
-    throw new Error(`Relayer keypair not found at ${keypairPath}`);
+  // Option 1: From env var (Render / production)
+  if (process.env.RELAYER_PRIVATE_KEY) {
+    return Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(process.env.RELAYER_PRIVATE_KEY))
+    );
   }
-  return Keypair.fromSecretKey(
-    Uint8Array.from(JSON.parse(fs.readFileSync(keypairPath, "utf-8")))
+
+  // Option 2: From file (local dev)
+  const keypairPath = process.env.HOME + "/.config/solana/id.json";
+  if (fs.existsSync(keypairPath)) {
+    return Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(fs.readFileSync(keypairPath, "utf-8")))
+    );
+  }
+
+  throw new Error(
+    "Relayer keypair not found. Set RELAYER_PRIVATE_KEY env var or provide ~/.config/solana/id.json"
   );
 }
 
