@@ -2,15 +2,21 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { Key, Loader2, Copy } from "lucide-react";
 import axios from "axios";
-import { BACKEND_URL } from "../../env-variables";
+import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../../env-variables";
 import toast from "react-hot-toast";
 import RatingModal from "./RatingModal";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import IDL from "../../idl/employment_platform.json" with { type: "json" };
 
 const CompanyOTPGenerator = ({ job, onOTPGenerated }) => {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [ratingDone, setRatingDone] = useState(!!job.workerRating);
   const [localOTP, setLocalOTP] = useState(null);
+  const { connection } = useConnection();
+  const wallet = useWallet();
 
   // Stop click from bubbling to parent card (which opens job details modal)
   const stopProp = (e) => e.stopPropagation();
@@ -25,21 +31,77 @@ const CompanyOTPGenerator = ({ job, onOTPGenerated }) => {
   };
 
   const handleRatingSubmit = async (rating, review) => {
-    const token = localStorage.getItem("token");
-    const response = await axios.post(
-      `${BACKEND_URL}/job/rating/company`,
-      { jobId: job._id, rating, review },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (!response.data.success) {
-      throw new Error(response.data.message || "Failed to submit rating");
+    if (!wallet.publicKey || !wallet.signTransaction) {
+      toast.error("Please connect your wallet");
+      return;
     }
 
-    toast.success("Rating submitted!");
-    setRatingDone(true);
-    setShowRatingModal(false);
-    await generateOTP();
+    const loadingToast = toast.loading("Preparing rating transaction...");
+    try {
+      const provider = new AnchorProvider(
+        connection,
+        wallet,
+        AnchorProvider.defaultOptions()
+      );
+      const program = new Program(IDL, PROGRAM_ID, provider);
+
+      const userRatingKeypair = Keypair.generate();
+      const jobPDA = new PublicKey(job.jobPDA);
+      const workerPublicKey = new PublicKey(job.assignedWorker);
+      
+      const [workerProfilePDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("user_profile"), workerPublicKey.toBuffer()],
+        program.programId
+      );
+
+      toast.loading("Please sign the rating transaction...", { id: loadingToast });
+
+      const tx = await program.methods
+        .rateUser(rating, review || "")
+        .accounts({
+          userRating: userRatingKeypair.publicKey,
+          job: jobPDA,
+          targetProfile: workerProfilePDA,
+          targetUser: workerPublicKey,
+          rater: wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .transaction();
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = wallet.publicKey;
+
+      // Safe multi-signature flow
+      const walletSignedTx = await wallet.signTransaction(tx);
+      walletSignedTx.partialSign(userRatingKeypair);
+      
+      toast.loading("Sending transaction...", { id: loadingToast });
+      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
+      
+      toast.loading("Confirming transaction...", { id: loadingToast });
+      await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
+
+      toast.loading("Saving rating...", { id: loadingToast });
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/rating/company`,
+        { jobId: job._id, rating, review, txSignature },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to submit rating");
+      }
+
+      toast.success("Rating submitted!", { id: loadingToast });
+      setRatingDone(true);
+      setShowRatingModal(false);
+      await generateOTP();
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      toast.error(error.message || "Failed to submit rating", { id: loadingToast });
+    }
   };
 
   const generateOTP = async () => {
