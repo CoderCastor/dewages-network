@@ -517,6 +517,49 @@ const WorkerSignupForm = () => {
     }
   };
 
+  const isStepReadyToProceed = (stepIndex) => {
+    switch (stepIndex) {
+      case 0:
+        return (
+          formData.walletAddress &&
+          formData.walletAddress.length >= 32 &&
+          formData.name &&
+          formData.phone &&
+          phoneRegex.test(formData.phone) &&
+          formData.email &&
+          z.string().email().safeParse(formData.email).success &&
+          emailVerified
+        );
+      case 1:
+        return (
+          formData.location.address &&
+          formData.location.city &&
+          formData.location.state
+        );
+      case 2:
+        return (
+          formData.skills && formData.skills.length > 0 &&
+          formData.jobCategories && formData.jobCategories.length > 0
+        );
+      case 3:
+        return (
+          formData.preferences.minPaymentAmount >= 0 &&
+          formData.preferences.workingHours.days &&
+          formData.preferences.workingHours.days.length > 0
+        );
+      case 4:
+        return (
+          formData.emergencyContact.name &&
+          formData.emergencyContact.phone &&
+          formData.emergencyContact.relation
+        );
+      case 5:
+        return panVerified;
+      default:
+        return true;
+    }
+  };
+
   // Validation function for each step
   const validateStep = (stepIndex) => {
     const stepErrors = {};
@@ -1674,9 +1717,14 @@ const WorkerSignupForm = () => {
                   <motion.button
                     type="button"
                     onClick={nextStep}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200"
+                    disabled={!isStepReadyToProceed(currentStep)}
+                    whileHover={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 1.05 }}
+                    whileTap={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 0.95 }}
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 ${
+                      !isStepReadyToProceed(currentStep)
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-purple-600 text-white hover:bg-purple-700"
+                    }`}
                   >
                     <span>Next</span>
                     <ChevronRight size={16} />
@@ -1684,10 +1732,14 @@ const WorkerSignupForm = () => {
                 ) : (
                   <motion.button
                     onClick={onSubmit}
-                    disabled={isSubmitting}
-                    whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
-                    whileTap={{ scale: isSubmitting ? 1 : 0.95 }}
-                    className="flex items-center space-x-2 px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                    disabled={isSubmitting || !isStepReadyToProceed(steps.length - 2)}
+                    whileHover={{ scale: (isSubmitting || !isStepReadyToProceed(steps.length - 2)) ? 1 : 1.05 }}
+                    whileTap={{ scale: (isSubmitting || !isStepReadyToProceed(steps.length - 2)) ? 1 : 0.95 }}
+                    className={`flex items-center space-x-2 px-8 py-3 rounded-lg transition-all duration-200 ${
+                      (isSubmitting || !isStepReadyToProceed(steps.length - 2))
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
                   >
                     {isSubmitting ? (
                       <>
