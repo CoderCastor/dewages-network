@@ -61,14 +61,21 @@ export default function WorkerDetailPage() {
     console.log(onChainData);
     async function verifyUserOnBackend() {
       if (onChainData?.verifiedByAdmin == true) {
-        const res = await axios.post(
-          `${BACKEND_URL}/admin/verify-worker/${workerId}`,
-          {
-            isVerified: true,
-            PDAAddress: pdaAddress,
+        try {
+          const res = await axios.post(
+            `${BACKEND_URL}/admin/verify-worker/${workerId}`,
+            {
+              isVerified: true,
+              PDAAddress: pdaAddress,
+            }
+          );
+          console.log(res.data);
+          if (res.data.success) {
+            setWorker(prev => prev ? { ...prev, isVerified: true, PDAAddress: pdaAddress } : null);
           }
-        );
-        console.log(res.data)
+        } catch (error) {
+          console.error("Error updating backend verification:", error);
+        }
       }
     }
     if (onChainData) verifyUserOnBackend()
@@ -278,7 +285,7 @@ export default function WorkerDetailPage() {
   const updateVerificationStatus = async (pdaAddress) => {
     try {
       const token = localStorage.getItem("adminToken");
-      await fetch(`${BACKEND_URL}/admin/verify-worker/${worker.walletAddress}`, {
+      const response = await fetch(`${BACKEND_URL}/admin/verify-worker/${worker.walletAddress}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -289,6 +296,9 @@ export default function WorkerDetailPage() {
           PDAAddress: pdaAddress,
         }),
       });
+      if (response.ok) {
+        setWorker(prev => prev ? { ...prev, isVerified: true, PDAAddress: pdaAddress } : null);
+      }
     } catch (error) {
       console.error("Error updating verification status:", error);
     }

@@ -64,11 +64,14 @@ export default function CompanyDetailPage() {
           const res = await axios.post(
             `${BACKEND_URL}/admin/verify-company/${walletAddress}`,
             {
-              verify: true,
+              isVerified: true,
               PDAAddress: pdaAddress,
             }
           );
           console.log(res.data);
+          if (res.data.success) {
+            setCompany(prev => prev ? { ...prev, isVerified: true, PDAAddress: pdaAddress } : null);
+          }
         } catch (error) {
           console.error("Error updating backend:", error);
         }
@@ -152,7 +155,7 @@ export default function CompanyDetailPage() {
       // Format the data
       const formattedData = {
         authority: accountData.authority.toString(),
-        userType: accountData.userType.employer ? "Employer" : "Worker",
+        userType: accountData.userType.worker ? "Worker" : "Employer",
         name: accountData.name,
         phone: accountData.phone,
         location: accountData.location,
@@ -201,7 +204,7 @@ export default function CompanyDetailPage() {
       // Convert company's wallet address to PublicKey
       const companyPublicKey = new PublicKey(company.walletAddress);
 
-      // Derive PDA for company profile
+      // Derive PDA for company profile (using target user's key)
       const [userProfilePDA, bump] = await PublicKey.findProgramAddress(
         [Buffer.from("user_profile"), companyPublicKey.toBuffer()],
         PROGRAM_ID_KEY
@@ -213,7 +216,7 @@ export default function CompanyDetailPage() {
       console.log("PDA Bump:", bump);
       setPdaAddress(userProfilePDA.toString());
 
-      // Prepare user type enum (Employer for company)
+      // Prepare user type enum (Employer / Company)
       const userType = { employer: {} };
 
       // Prepare location string
@@ -222,17 +225,18 @@ export default function CompanyDetailPage() {
           }`.trim() || "Unknown";
 
       // Call create_user_profile instruction
+      // Admin signs the transaction and creates PDA for the company
       const tx = await program.methods
         .createUserProfile(
           userType,
-          company.name || company.companyName || "Unknown Company",
+          company.companyName || "Unknown Company",
           company.phone || "",
           location
         )
         .accounts({
           userProfile: userProfilePDA,
-          targetUser: companyPublicKey,
-          admin: wallet.publicKey,
+          targetUser: companyPublicKey, // Company's wallet (target user)
+          admin: wallet.publicKey, // Admin wallet (signer & payer)
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -286,7 +290,7 @@ export default function CompanyDetailPage() {
   const updateVerificationStatus = async (pdaAddress) => {
     try {
       const token = localStorage.getItem("adminToken");
-      await fetch(`${BACKEND_URL}/admin/verify-company/${walletAddress}`, {
+      const response = await fetch(`${BACKEND_URL}/admin/verify-company/${walletAddress}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -297,6 +301,9 @@ export default function CompanyDetailPage() {
           PDAAddress: pdaAddress,
         }),
       });
+      if (response.ok) {
+        setCompany(prev => prev ? { ...prev, isVerified: true, PDAAddress: pdaAddress } : null);
+      }
     } catch (error) {
       console.error("Error updating verification status:", error);
     }
