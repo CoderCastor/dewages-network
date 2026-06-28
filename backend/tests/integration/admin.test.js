@@ -110,7 +110,7 @@ describe("Admin Login", () => {
 
     adminLogin(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: false })
     );

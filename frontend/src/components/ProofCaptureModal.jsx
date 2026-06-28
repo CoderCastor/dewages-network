@@ -58,7 +58,6 @@ export default function ProofCaptureModal({
     setGpsCoordinates(null);
     setGpsError(null);
     setOtp(otpValue || "");
-    fetchGPS();
   }, [isOpen]);
 
   const fetchGPS = () => {
@@ -103,6 +102,11 @@ export default function ProofCaptureModal({
       timeout: 15000,   // 15s — mobile GPS locks can be slow indoors
       maximumAge: 0,
     });
+  };
+
+  const handleOpenCamera = () => {
+    fetchGPS();
+    fileInputRef.current?.click();
   };
 
   const handleFileChange = async (e) => {
@@ -233,14 +237,14 @@ export default function ProofCaptureModal({
                       onChange={handleFileChange}
                     />
                     <button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={handleOpenCamera}
                       className={`w-full py-3 ${btnColor} text-white rounded-xl font-semibold active:scale-95 transition-all flex items-center justify-center gap-2`}
                     >
                       <Camera className="w-5 h-5" />
                       Open Camera
                     </button>
                     <p className="text-xs text-gray-400 mt-3">
-                      GPS location is being captured in the background
+                      Allows camera & captures GPS location
                       {gpsLoading && " …"}
                       {gpsCoordinates && " ✓"}
                     </p>
