@@ -343,14 +343,16 @@ const JobDetailsModalWorker = ({
 
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
-      // We have TWO signers: the user's browser wallet + the new proofOfWorkKeypair.
-      // Anchor's .signers([keypair]).rpc() doesn't handle this reliably with browser wallets.
-      // Instead we: build tx → partialSign with keypair → wallet signs → send raw.
+      // TWO signers: wallet (worker) + proofOfWorkKeypair (new on-chain account).
+      // The wallet MUST sign first on a CLEAN tx — Phantom mobile strips any
+      // pre-existing partial sigs when it serializes the tx to send to the Phantom app.
+      // After wallet returns the signed tx, we partialSign with the keypair locally
+      // (pure JS, never leaves the browser) — it can never be stripped.
       const tx = await program.methods
         .submitProofOfWork(
-          { photo: {} },          // proofType → Photo
-          proofDataBundle,        // compact proof reference (full URL is in MongoDB)
-          null                    // gps stored in MongoDB, keep null here to save space
+          { photo: {} },
+          proofDataBundle,
+          null
         )
         .accounts({
           job: jobPDA,
@@ -364,14 +366,14 @@ const JobDetailsModalWorker = ({
       tx.recentBlockhash = blockhash;
       tx.feePayer = wallet.publicKey;
 
-      // Step 1: Sign with the new proof account keypair (local, no popup needed)
-      tx.partialSign(proofOfWorkKeypair);
+      // Step 1: Wallet signs the CLEAN transaction (Phantom popup — nothing to strip)
+      const walletSignedTx = await wallet.signTransaction(tx);
 
-      // Step 2: Send to Phantom/wallet for the worker's signature (triggers popup)
-      const signedTx = await wallet.signTransaction(tx);
+      // Step 2: Add keypair signature locally AFTER Phantom returns (pure JS, safe)
+      walletSignedTx.partialSign(proofOfWorkKeypair);
 
-      // Step 3: Broadcast
-      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
+      // Step 3: Both signatures present — broadcast
+      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");

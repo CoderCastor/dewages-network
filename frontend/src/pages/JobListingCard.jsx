@@ -309,10 +309,9 @@ const JobListingCard = ({
         at: new Date().toISOString(),
       }).slice(0, 200);
 
-      toast.loading("Please sign the transaction...", { id: loadingToast });
-
-      // Two signers: browser wallet (worker) + local proofOfWorkKeypair.
-      // Build → partialSign → wallet.signTransaction → sendRaw is the correct approach.
+      // TWO signers: wallet (worker) + proofOfWorkKeypair (new on-chain account).
+      // Wallet MUST sign FIRST on a CLEAN tx — Phantom mobile strips pre-existing sigs.
+      // We partialSign with the keypair locally AFTER Phantom returns (pure JS, safe).
       const tx = await program.methods
         .submitProofOfWork(
           { photo: {} },
@@ -331,14 +330,14 @@ const JobListingCard = ({
       tx.recentBlockhash = blockhash;
       tx.feePayer = wallet.publicKey;
 
-      // Step 1: Sign with local keypair (no popup)
-      tx.partialSign(proofOfWorkKeypair);
+      // Step 1: Wallet signs the CLEAN transaction (Phantom popup — nothing to strip)
+      const walletSignedTx = await wallet.signTransaction(tx);
 
-      // Step 2: Wallet signs (triggers Phantom popup)
-      const signedTx = await wallet.signTransaction(tx);
+      // Step 2: Add keypair signature locally AFTER Phantom returns (pure JS, safe)
+      walletSignedTx.partialSign(proofOfWorkKeypair);
 
-      // Step 3: Broadcast
-      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
+      // Step 3: Both signatures present — broadcast
+      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
