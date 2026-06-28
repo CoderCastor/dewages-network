@@ -300,21 +300,22 @@ const JobListingCard = ({
       const jobPDA = new PublicKey(proofData.jobPDA);
       const workerPublicKey = new PublicKey(proofData.workerWallet);
 
-      // Bundle evidence into proofData string
+      // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
+      // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
+      const photoKey = photoUrl ? photoUrl.split('/').pop()?.slice(0, 50) || 'photo' : 'no-photo';
       const proofDataBundle = JSON.stringify({
         otp,
-        photoUrl: photoUrl || null,
-        gps: gpsCoordinates || null,
-        capturedAt: new Date().toISOString(),
-      });
+        photo: photoKey,
+        at: new Date().toISOString(),
+      }).slice(0, 200);
 
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
       const txSignature = await program.methods
         .submitProofOfWork(
-          { photo: {} },          // proofType → Photo (includes OTP inside bundle)
-          proofDataBundle,        // proofData → JSON bundle
-          gpsCoordinates || null  // gps_coordinates (now populated!)
+          { photo: {} },          // proofType → Photo
+          proofDataBundle,        // compact proof reference (full URL is in MongoDB)
+          null                    // gps stored in MongoDB, keep null here to save space
         )
         .accounts({
           job: jobPDA,
