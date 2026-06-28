@@ -19,16 +19,8 @@ function App() {
   
   const endpoint = RPC_URL;
 
-  // We keep Solflare and Torus here explicitly.
-  // We DO NOT explicitly add `new PhantomWalletAdapter()` because Phantom is now a "Standard Wallet". 
-  // It will be auto-detected by the browser and handled naturally, which fixes the Android deep-linking.
-  const wallets = useMemo(
-    () => [
-      new SolflareWalletAdapter(),
-      new TorusWalletAdapter(),
-    ],
-    [] 
-  );
+  // Use empty array so Wallet Standard auto-detects wallets and handles mobile deep-links properly
+  const wallets = useMemo(() => [], [WalletAdapterNetwork.Devnet]);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
