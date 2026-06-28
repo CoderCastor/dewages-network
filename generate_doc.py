@@ -369,5 +369,5 @@ refs = [
 for i, r in enumerate(refs):
     doc.add_paragraph(f'[{i+1}] {r}', style='List Number')
 
-doc.save('/Users/tejasshinde/BigProjects/dewages-network/DeWages_Network_Documentation.docx')
+doc.save('./DeWages_Network_Documentation.docx')
 print('Document saved successfully.')
