@@ -62,24 +62,47 @@ export default function ProofCaptureModal({
   }, [isOpen]);
 
   const fetchGPS = () => {
+    // Mobile browsers (Chrome/Safari) block geolocation on HTTP (non-localhost).
+    const isSecure = window.location.protocol === "https:" || window.location.hostname === "localhost";
+    if (!isSecure) {
+      setGpsError("Location requires HTTPS. Connect your phone via the HTTPS URL or use a desktop browser.");
+      return;
+    }
     if (!navigator.geolocation) {
       setGpsError("Geolocation not supported by this browser.");
       return;
     }
     setGpsLoading(true);
     setGpsError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = `${pos.coords.latitude.toFixed(6)},${pos.coords.longitude.toFixed(6)}`;
-        setGpsCoordinates(coords);
-        setGpsLoading(false);
-      },
-      () => {
-        setGpsError("Could not get location. Please enable location access.");
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+
+    const onSuccess = (pos) => {
+      const coords = `${pos.coords.latitude.toFixed(6)},${pos.coords.longitude.toFixed(6)}`;
+      setGpsCoordinates(coords);
+      setGpsLoading(false);
+    };
+
+    const onError = (err) => {
+      if (err.code === err.PERMISSION_DENIED) {
+        setGpsError("Location permission denied. Please allow location access in your browser/phone settings.");
+      } else if (err.code === err.POSITION_UNAVAILABLE) {
+        // On mobile, try again with lower accuracy as fallback
+        navigator.geolocation.getCurrentPosition(onSuccess, () => {
+          setGpsError("Location unavailable. Make sure GPS is enabled on your device.");
+          setGpsLoading(false);
+        }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 });
+        return;
+      } else {
+        setGpsError("Location timed out. Try moving to an open area and tap Retry.");
+      }
+      setGpsLoading(false);
+    };
+
+    // First attempt: high accuracy (good for outdoor/mobile GPS)
+    navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+      enableHighAccuracy: true,
+      timeout: 15000,   // 15s — mobile GPS locks can be slow indoors
+      maximumAge: 0,
+    });
   };
 
   const handleFileChange = async (e) => {
