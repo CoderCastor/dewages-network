@@ -31,7 +31,7 @@ import toast from "react-hot-toast";
 import RatingModal from "../components/common/RatingModal";
 import ProofCaptureModal from "../components/ProofCaptureModal";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "../idl/employment_platform.json" with { type: "json" };
 
@@ -343,11 +343,6 @@ const JobDetailsModalWorker = ({
 
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
-      // TWO signers: wallet (worker) + proofOfWorkKeypair (new on-chain account).
-      // The wallet MUST sign first on a CLEAN tx — Phantom mobile strips any
-      // pre-existing partial sigs when it serializes the tx to send to the Phantom app.
-      // After wallet returns the signed tx, we partialSign with the keypair locally
-      // (pure JS, never leaves the browser) — it can never be stripped.
       const tx = await program.methods
         .submitProofOfWork(
           { photo: {} },
@@ -366,14 +361,11 @@ const JobDetailsModalWorker = ({
       tx.recentBlockhash = blockhash;
       tx.feePayer = wallet.publicKey;
 
-      // Step 1: Wallet signs the CLEAN transaction (Phantom popup — nothing to strip)
-      const walletSignedTx = await wallet.signTransaction(tx);
-
-      // Step 2: Add keypair signature locally AFTER Phantom returns (pure JS, safe)
-      walletSignedTx.partialSign(proofOfWorkKeypair);
-
-      // Step 3: Both signatures present — broadcast
-      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
+      // The official Solana Wallet Adapter way to send transactions with multiple signers.
+      // This handles all the mobile deep-linking and Wallet Adapter quirks automatically!
+      const txSignature = await wallet.sendTransaction(tx, connection, {
+        signers: [proofOfWorkKeypair]
+      });
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
