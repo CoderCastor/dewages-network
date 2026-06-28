@@ -309,9 +309,10 @@ const JobListingCard = ({
         at: new Date().toISOString(),
       }).slice(0, 200);
 
-      // Two signers needed: wallet (worker) + proofOfWorkKeypair.
-      // CRITICAL ORDER: wallet signs FIRST on a clean tx (Phantom mobile strips pre-existing
-      // partial sigs). We add keypair signature locally AFTER wallet returns — it's never stripped.
+      toast.loading("Please sign the transaction...", { id: loadingToast });
+
+      // Two signers: browser wallet (worker) + local proofOfWorkKeypair.
+      // Build → partialSign → wallet.signTransaction → sendRaw is the correct approach.
       const tx = await program.methods
         .submitProofOfWork(
           { photo: {} },
@@ -330,14 +331,14 @@ const JobListingCard = ({
       tx.recentBlockhash = blockhash;
       tx.feePayer = wallet.publicKey;
 
-      // Step 1: Wallet signs the CLEAN tx (Phantom popup — nothing to strip)
-      const walletSignedTx = await wallet.signTransaction(tx);
+      // Step 1: Sign with local keypair (no popup)
+      tx.partialSign(proofOfWorkKeypair);
 
-      // Step 2: Add keypair signature locally AFTER wallet returns (safe)
-      walletSignedTx.partialSign(proofOfWorkKeypair);
+      // Step 2: Wallet signs (triggers Phantom popup)
+      const signedTx = await wallet.signTransaction(tx);
 
-      // Step 3: Broadcast with both signatures present
-      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
+      // Step 3: Broadcast
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
@@ -906,78 +907,20 @@ const JobListingCard = ({
           isOpen={showWorkerRatingModal}
           onClose={() => {}} // no-op: rating is mandatory
           onSubmit={async (rating, review) => {
-            if (!wallet.publicKey || !wallet.signTransaction) {
-              toast.error("Please connect your wallet");
-              return;
+            const token = localStorage.getItem("token");
+            const response = await axios.post(
+              `${BACKEND_URL}/job/rating/worker`,
+              { jobId: job._id, rating, review },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!response.data.success) {
+              throw new Error(response.data.message || "Failed to submit rating");
             }
-
-            const loadingToast = toast.loading("Preparing rating transaction...");
-            try {
-              const connection = new Connection(RPC_URL, "confirmed");
-              const provider = new AnchorProvider(
-                connection,
-                wallet,
-                AnchorProvider.defaultOptions()
-              );
-              const program = new Program(idl, PROGRAM_ID, provider);
-
-              const userRatingKeypair = Keypair.generate();
-              const jobPDA = new PublicKey(job.jobPDA);
-              const companyPublicKey = new PublicKey(job.companyWallet);
-              
-              const [companyProfilePDA] = PublicKey.findProgramAddressSync(
-                [Buffer.from("employer_profile"), companyPublicKey.toBuffer()],
-                program.programId
-              );
-
-              toast.loading("Please sign the rating transaction...", { id: loadingToast });
-
-              const tx = await program.methods
-                .rateUser(rating, review || "")
-                .accounts({
-                  userRating: userRatingKeypair.publicKey,
-                  job: jobPDA,
-                  targetProfile: companyProfilePDA,
-                  targetUser: companyPublicKey,
-                  rater: wallet.publicKey,
-                  systemProgram: SystemProgram.programId,
-                })
-                .transaction();
-
-              const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-              tx.recentBlockhash = blockhash;
-              tx.feePayer = wallet.publicKey;
-
-              // Safe multi-signature flow
-              const walletSignedTx = await wallet.signTransaction(tx);
-              walletSignedTx.partialSign(userRatingKeypair);
-              
-              toast.loading("Sending transaction...", { id: loadingToast });
-              const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
-              
-              toast.loading("Confirming transaction...", { id: loadingToast });
-              await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
-
-              toast.loading("Saving rating...", { id: loadingToast });
-              const token = localStorage.getItem("token");
-              const response = await axios.post(
-                `${BACKEND_URL}/job/rating/worker`,
-                { jobId: job._id, rating, review, txSignature },
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              
-              if (!response.data.success) {
-                throw new Error(response.data.message || "Failed to submit rating");
-              }
-              toast.success("Rating submitted!", { id: loadingToast });
-              setWorkerRatingDone(true);
-              setShowWorkerRatingModal(false);
-              // Now open the OTP input
-              setShowOTPInput((prev) => ({ ...prev, end: true }));
-            } catch (error) {
-              console.error("Error submitting rating:", error);
-              toast.error(error.message || error.response?.data?.message || "Failed to submit rating", { id: loadingToast });
-            }
+            toast.success("Rating submitted!");
+            setWorkerRatingDone(true);
+            setShowWorkerRatingModal(false);
+            // Now open the OTP input
+            setShowOTPInput((prev) => ({ ...prev, end: true }));
           }}
           targetName={job.companyName || "the Company"}
           targetType="company"
