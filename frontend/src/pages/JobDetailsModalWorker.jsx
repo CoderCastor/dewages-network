@@ -326,7 +326,11 @@ const JobDetailsModalWorker = ({
       const proofAccountAddress = proofOfWorkKeypair.publicKey.toString();
 
       const jobPDA = new PublicKey(proofData.jobPDA);
-      const workerPublicKey = new PublicKey(proofData.workerWallet);
+      // IMPORTANT: `worker` must be the connected wallet (Signer) — NOT proofData.workerWallet
+      // The smart contract declares `worker: Signer<'info>`, so Solana requires the transaction
+      // signer and the `worker` account to be the SAME key. Using a stored string causes
+      // "Missing signature for public key" error.
+      const workerPublicKey = wallet.publicKey;
 
       // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
       // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.

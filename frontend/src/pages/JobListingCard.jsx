@@ -298,7 +298,7 @@ const JobListingCard = ({
       const proofAccountAddress = proofOfWorkKeypair.publicKey.toString();
 
       const jobPDA = new PublicKey(proofData.jobPDA);
-      const workerPublicKey = new PublicKey(proofData.workerWallet);
+      const workerPublicKey = wallet.publicKey; // Must match the signer (Signer<'info> in contract)
 
       // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
       // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
