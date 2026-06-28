@@ -19,17 +19,8 @@ function App() {
   
   const endpoint = RPC_URL;
 
-  // const wallets = useMemo(() => [], [WalletAdapterNetwork.Devnet]);
-  
-  //changes for local devlopment
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-      new TorusWalletAdapter(),
-    ],
-    [] // Remove WalletAdapterNetwork.Devnet from dependency array
-  );
+  // Use empty array so Wallet Standard auto-detects wallets and handles mobile deep-links properly
+  const wallets = useMemo(() => [], [WalletAdapterNetwork.Devnet]);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
