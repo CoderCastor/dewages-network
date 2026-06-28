@@ -307,58 +307,111 @@ export default function DisputePanel({ disputes, onResolved }) {
                     </div>
                   </div>
 
-                  {/* Proof of Work — Evidence Bundle */}
-                  {job.proofOfWork && (
+                  {/* Evidence Bundle — Before & After Photos */}
+                  {(job.proofOfWork || job.startJobOTP?.photoUrl) && (
                     <div>
-                      <h4 className="font-semibold text-slate-700 mb-2 flex items-center gap-1">
-                        🛡️ Evidence Bundle
+                      <h4 className="font-semibold text-slate-700 mb-3 flex items-center gap-1">
+                        🛡️ Evidence Bundle — Before &amp; After
                       </h4>
-                      <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden text-xs">
-                        {/* Photo */}
-                        {job.proofOfWork.photoUrl ? (
-                          <div>
-                            <img
-                              src={job.proofOfWork.photoUrl}
-                              alt="Proof photo"
-                              className="w-full h-40 object-cover"
-                            />
-                            <a
-                              href={job.proofOfWork.photoUrl}
-                              target="_blank" rel="noreferrer"
-                              className="block text-center py-1 text-indigo-600 hover:underline bg-indigo-50"
-                            >
-                              Open full photo ↗
-                            </a>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* ── BEFORE photo (Start OTP) ── */}
+                        <div className="bg-white rounded-lg border-2 border-green-200 overflow-hidden text-xs">
+                          <div className="bg-green-50 px-3 py-2 font-semibold text-green-700 flex items-center gap-1.5">
+                            📸 Before Work
+                            <span className="ml-auto text-green-500 font-normal">Start OTP</span>
                           </div>
-                        ) : (
-                          <div className="bg-gray-50 h-12 flex items-center justify-center text-gray-400">
-                            No photo submitted
-                          </div>
-                        )}
-                        <div className="p-3 space-y-1.5">
-                          {/* GPS */}
-                          {job.proofOfWork.gpsCoordinates ? (
-                            <a
-                              href={`https://maps.google.com/?q=${job.proofOfWork.gpsCoordinates}`}
-                              target="_blank" rel="noreferrer"
-                              className="flex items-center gap-1.5 text-indigo-600 hover:underline"
-                            >
-                              📍 GPS: {job.proofOfWork.gpsCoordinates} — View on Map ↗
-                            </a>
+                          {job.startJobOTP?.photoUrl ? (
+                            <>
+                              <img
+                                src={job.startJobOTP.photoUrl}
+                                alt="Before-work photo"
+                                className="w-full h-40 object-cover"
+                              />
+                              <a
+                                href={job.startJobOTP.photoUrl}
+                                target="_blank" rel="noreferrer"
+                                className="block text-center py-1 text-green-600 hover:underline bg-green-50"
+                              >
+                                Open full photo ↗
+                              </a>
+                            </>
                           ) : (
-                            <p className="text-gray-400">📍 No GPS data captured</p>
+                            <div className="h-40 flex items-center justify-center text-gray-400 bg-gray-50">
+                              No before-work photo
+                            </div>
                           )}
-                          <p><span className="font-medium">Type:</span> {job.proofOfWork.proofType}</p>
-                          <p><span className="font-medium">Submitted:</span> {new Date(job.proofOfWork.submittedAt).toLocaleString()}</p>
-                          <p className="font-mono break-all"><span className="font-medium">Tx:</span> {job.proofOfWork.txSignature}</p>
-                          <a
-                            href={`https://explorer.solana.com/tx/${job.proofOfWork.txSignature}?cluster=devnet`}
-                            target="_blank" rel="noreferrer"
-                            className="text-indigo-600 hover:underline flex items-center gap-1"
-                          >
-                            <ExternalLink className="w-3 h-3" /> View on Solana Explorer
-                          </a>
+                          <div className="p-3 space-y-1.5">
+                            {job.startJobOTP?.gpsCoordinates ? (
+                              <a
+                                href={`https://maps.google.com/?q=${job.startJobOTP.gpsCoordinates}`}
+                                target="_blank" rel="noreferrer"
+                                className="flex items-center gap-1 text-green-600 hover:underline"
+                              >
+                                📍 {job.startJobOTP.gpsCoordinates} — Map ↗
+                              </a>
+                            ) : (
+                              <p className="text-gray-400">📍 No GPS data</p>
+                            )}
+                            {job.startJobOTP?.usedAt && (
+                              <p><span className="font-medium">Started:</span> {new Date(job.startJobOTP.usedAt).toLocaleString()}</p>
+                            )}
+                          </div>
                         </div>
+
+                        {/* ── AFTER photo (Proof of Work) ── */}
+                        <div className="bg-white rounded-lg border-2 border-indigo-200 overflow-hidden text-xs">
+                          <div className="bg-indigo-50 px-3 py-2 font-semibold text-indigo-700 flex items-center gap-1.5">
+                            ✅ After Work
+                            <span className="ml-auto text-indigo-400 font-normal">End OTP + Blockchain</span>
+                          </div>
+                          {job.proofOfWork?.photoUrl ? (
+                            <>
+                              <img
+                                src={job.proofOfWork.photoUrl}
+                                alt="After-work proof photo"
+                                className="w-full h-40 object-cover"
+                              />
+                              <a
+                                href={job.proofOfWork.photoUrl}
+                                target="_blank" rel="noreferrer"
+                                className="block text-center py-1 text-indigo-600 hover:underline bg-indigo-50"
+                              >
+                                Open full photo ↗
+                              </a>
+                            </>
+                          ) : (
+                            <div className="h-40 flex items-center justify-center text-gray-400 bg-gray-50">
+                              No after-work photo
+                            </div>
+                          )}
+                          <div className="p-3 space-y-1.5">
+                            {job.proofOfWork?.gpsCoordinates ? (
+                              <a
+                                href={`https://maps.google.com/?q=${job.proofOfWork.gpsCoordinates}`}
+                                target="_blank" rel="noreferrer"
+                                className="flex items-center gap-1 text-indigo-600 hover:underline"
+                              >
+                                📍 {job.proofOfWork.gpsCoordinates} — Map ↗
+                              </a>
+                            ) : (
+                              <p className="text-gray-400">📍 No GPS data</p>
+                            )}
+                            {job.proofOfWork?.submittedAt && (
+                              <p><span className="font-medium">Submitted:</span> {new Date(job.proofOfWork.submittedAt).toLocaleString()}</p>
+                            )}
+                            {job.proofOfWork?.txSignature && (
+                              <a
+                                href={`https://explorer.solana.com/tx/${job.proofOfWork.txSignature}?cluster=devnet`}
+                                target="_blank" rel="noreferrer"
+                                className="text-indigo-600 hover:underline flex items-center gap-1"
+                              >
+                                <ExternalLink className="w-3 h-3" /> View on Solana ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
                       </div>
                     </div>
                   )}
