@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import nacl from "tweetnacl";
 import { config } from "../config.js";
 import { walletSchema } from "../schemas/cryptoSchema.js";
+import axios from "axios";
 
 const verifyWorkerWallet = async (req, res) => {
   const { publicKey, signature } = req.body;
@@ -158,4 +159,100 @@ const signupUser = async (req, res) => {
   
 };
 
-export { signupUser, verifyWorkerWallet };
+
+const verifyPAN = async (req, res) => {
+  const { pan, name_as_per_pan, date_of_birth, walletAddress } = req.body;
+
+  // --- Input validation ---
+  if (!pan || !name_as_per_pan || !date_of_birth || !walletAddress) {
+    return res.status(400).json({
+      message: "pan, name_as_per_pan, date_of_birth and walletAddress are required",
+    });
+  }
+
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+  if (!panRegex.test(pan.toUpperCase())) {
+    return res.status(400).json({ message: "Invalid PAN format. Expected format: ABCDE1234F" });
+  }
+
+  // Check required env vars are set
+  if (!process.env.SANDBOX_API_KEY || !process.env.SANDBOX_API_SECRET || !process.env.SANDBOX_HOST) {
+    console.error("Sandbox API credentials are not configured in .env");
+    return res.status(500).json({ message: "PAN verification service is not configured" });
+  }
+
+  try {
+    // --- Step 1: Authenticate with Sandbox to get access_token ---
+    const authResponse = await axios.post(
+      `${process.env.SANDBOX_HOST}/authenticate`,
+      {},
+      {
+        headers: {
+          "x-api-key":    process.env.SANDBOX_API_KEY,
+          "x-api-secret": process.env.SANDBOX_API_SECRET,
+          "x-api-version": process.env.API_VERSION || "1.0",
+        },
+      }
+    );
+
+    const accessToken = authResponse.data?.data?.access_token;
+    if (!accessToken) {
+      return res.status(502).json({ message: "Failed to authenticate with KYC provider" });
+    }
+
+    // --- Step 2: Call PAN KYC verification endpoint ---
+    const panPayload = {
+      "@entity": "in.co.sandbox.kyc.pan_verification.request",
+      pan: pan.toUpperCase(),
+      name_as_per_pan,
+      date_of_birth, // expected in DD/MM/YYYY
+      consent: "Y",
+      reason: "For onboarding worker on Dewages Network",
+    };
+
+    const panResponse = await axios.post(
+      `${process.env.SANDBOX_HOST}/kyc/pan/verify`,
+      panPayload,
+      {
+        headers: {
+          authorization:    accessToken,
+          "x-api-key":      process.env.SANDBOX_API_KEY,
+          "x-accept-cache": "true",
+          "Content-Type":   "application/json",
+        },
+      }
+    );
+
+    const panData = panResponse.data?.data;
+
+    // --- Step 3: Save verified PAN details to DB ---
+    await WorkerProfile.updateOne(
+      { walletAddress },
+      {
+        $set: {
+          "panDetails.panNumber":    pan.toUpperCase(),
+          "panDetails.nameAsPerPan": name_as_per_pan,
+          "panDetails.dateOfBirth":  date_of_birth,
+          "panDetails.verifiedAt":   new Date(),
+          "panDetails.isVerified":   true,
+          "verificationStatus.identity": true, // flip the existing identity flag
+        },
+      }
+    );
+
+    return res.status(200).json({
+      message: "PAN verified successfully",
+      data: panData,
+    });
+  } catch (err) {
+    const errData = err.response?.data;
+    const status  = err.response?.status || 500;
+    console.error("PAN verification error:", errData || err.message);
+    return res.status(status).json({
+      message: errData?.message || "PAN verification failed",
+      error: errData || err.message,
+    });
+  }
+};
+
+export { signupUser, verifyWorkerWallet, verifyPAN };
