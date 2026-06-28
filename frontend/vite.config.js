@@ -31,4 +31,7 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    host: true,   // exposes on 0.0.0.0 so phone can access via local IP
+  },
 });
