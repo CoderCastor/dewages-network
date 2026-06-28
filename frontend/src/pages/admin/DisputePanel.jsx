@@ -307,21 +307,58 @@ export default function DisputePanel({ disputes, onResolved }) {
                     </div>
                   </div>
 
-                  {/* Proof of Work */}
+                  {/* Proof of Work — Evidence Bundle */}
                   {job.proofOfWork && (
                     <div>
-                      <h4 className="font-semibold text-slate-700 mb-2 flex items-center gap-1">📋 Proof of Work</h4>
-                      <div className="bg-white rounded-lg p-4 border border-indigo-200 text-xs space-y-1">
-                        <p><span className="font-medium">Type:</span> {job.proofOfWork.proofType}</p>
-                        <p><span className="font-medium">Submitted:</span> {new Date(job.proofOfWork.submittedAt).toLocaleString()}</p>
-                        <p className="font-mono break-all"><span className="font-medium">Tx:</span> {job.proofOfWork.txSignature}</p>
-                        <a
-                          href={`https://explorer.solana.com/tx/${job.proofOfWork.txSignature}?cluster=devnet`}
-                          target="_blank" rel="noreferrer"
-                          className="text-indigo-600 hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3 h-3" /> View on Solana Explorer
-                        </a>
+                      <h4 className="font-semibold text-slate-700 mb-2 flex items-center gap-1">
+                        🛡️ Evidence Bundle
+                      </h4>
+                      <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden text-xs">
+                        {/* Photo */}
+                        {job.proofOfWork.photoUrl ? (
+                          <div>
+                            <img
+                              src={job.proofOfWork.photoUrl}
+                              alt="Proof photo"
+                              className="w-full h-40 object-cover"
+                            />
+                            <a
+                              href={job.proofOfWork.photoUrl}
+                              target="_blank" rel="noreferrer"
+                              className="block text-center py-1 text-indigo-600 hover:underline bg-indigo-50"
+                            >
+                              Open full photo ↗
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 h-12 flex items-center justify-center text-gray-400">
+                            No photo submitted
+                          </div>
+                        )}
+                        <div className="p-3 space-y-1.5">
+                          {/* GPS */}
+                          {job.proofOfWork.gpsCoordinates ? (
+                            <a
+                              href={`https://maps.google.com/?q=${job.proofOfWork.gpsCoordinates}`}
+                              target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1.5 text-indigo-600 hover:underline"
+                            >
+                              📍 GPS: {job.proofOfWork.gpsCoordinates} — View on Map ↗
+                            </a>
+                          ) : (
+                            <p className="text-gray-400">📍 No GPS data captured</p>
+                          )}
+                          <p><span className="font-medium">Type:</span> {job.proofOfWork.proofType}</p>
+                          <p><span className="font-medium">Submitted:</span> {new Date(job.proofOfWork.submittedAt).toLocaleString()}</p>
+                          <p className="font-mono break-all"><span className="font-medium">Tx:</span> {job.proofOfWork.txSignature}</p>
+                          <a
+                            href={`https://explorer.solana.com/tx/${job.proofOfWork.txSignature}?cluster=devnet`}
+                            target="_blank" rel="noreferrer"
+                            className="text-indigo-600 hover:underline flex items-center gap-1"
+                          >
+                            <ExternalLink className="w-3 h-3" /> View on Solana Explorer
+                          </a>
+                        </div>
                       </div>
                     </div>
                   )}

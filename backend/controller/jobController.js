@@ -1044,7 +1044,7 @@ const verifyJobOTP = async (req, res) => {
 
 const recordProofSubmission = async (req, res) => {
   try {
-    const { jobId, txSignature, proofAccountAddress, proofType, proofData } =
+    const { jobId, txSignature, proofAccountAddress, proofType, proofData, photoUrl, gpsCoordinates } =
       req.body;
 
     console.log("📝 Recording proof submission:", {
@@ -1108,12 +1108,14 @@ const recordProofSubmission = async (req, res) => {
     // Update status
     job.status = "pending_verification";
 
-    // Store proof of work details
+    // Store proof of work details (including photo + GPS evidence)
     job.proofOfWork = {
       accountAddress: proofAccountAddress,
       txSignature: txSignature,
       proofType: proofType || "OTP",
       proofData: proofData || "End OTP verified and work completed",
+      photoUrl: photoUrl || null,
+      gpsCoordinates: gpsCoordinates || null,
       submittedAt: now,
       isVerified: false,
     };

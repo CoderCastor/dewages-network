@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import RatingModal from "@/components/common/RatingModal";
 import DisputeModal from "@/components/common/DisputeModal";
+import ProofCaptureModal from "@/components/ProofCaptureModal";
 import {
   MapPin,
   Clock,
@@ -53,6 +54,7 @@ const JobListingCard = ({
   const [showProofPopup, setShowProofPopup] = useState(false);
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
+  const [proofEvidence, setProofEvidence] = useState(null); // {photoUrl, gpsCoordinates, otp}
   const [disputeTimeRemaining, setDisputeTimeRemaining] = useState(null);
   const [proofOfWork, setProofOfWork] = useState(null);
   const [fetchedProof, setFetchedProof] = useState(false);
@@ -238,7 +240,11 @@ const JobListingCard = ({
     }
   };
 
-  const handleSubmitProof = async () => {
+  // Called by ProofCaptureModal when all 3 steps are done
+  const handleProofCaptureComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setProofEvidence({ photoUrl, gpsCoordinates, otp });
+    setShowProofPopup(false);
+
     if (!wallet.publicKey || !wallet.signTransaction) {
       toast.error("Please connect your wallet");
       return;
@@ -262,10 +268,22 @@ const JobListingCard = ({
       const jobPDA = new PublicKey(proofData.jobPDA);
       const workerPublicKey = new PublicKey(proofData.workerWallet);
 
+      // Bundle evidence into proofData string
+      const proofDataBundle = JSON.stringify({
+        otp,
+        photoUrl: photoUrl || null,
+        gps: gpsCoordinates || null,
+        capturedAt: new Date().toISOString(),
+      });
+
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
       const txSignature = await program.methods
-        .submitProofOfWork({ otp: {} }, proofData.proofData, null)
+        .submitProofOfWork(
+          { photo: {} },          // proofType → Photo (includes OTP inside bundle)
+          proofDataBundle,        // proofData → JSON bundle
+          gpsCoordinates || null  // gps_coordinates (now populated!)
+        )
         .accounts({
           job: jobPDA,
           proofOfWork: proofOfWorkKeypair.publicKey,
@@ -285,10 +303,12 @@ const JobListingCard = ({
         `${BACKEND_URL}/job/proof-submitted`,
         {
           jobId: job._id,
-          txSignature: txSignature,
-          proofAccountAddress: proofAccountAddress,
-          proofType: "OTP",
-          proofData: proofData.proofData,
+          txSignature,
+          proofAccountAddress,
+          proofType: "PHOTO_OTP",
+          proofData: proofDataBundle,
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
         },
         {
           headers: {
@@ -305,14 +325,15 @@ const JobListingCard = ({
 
         setProofOfWork({
           accountAddress: proofAccountAddress,
-          txSignature: txSignature,
-          proofType: "OTP",
-          proofData: proofData.proofData,
+          txSignature,
+          proofType: "PHOTO_OTP",
+          proofData: proofDataBundle,
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
           submittedAt: new Date(),
           isVerified: false,
         });
 
-        setShowProofPopup(false);
         setOtpInput((prev) => ({ ...prev, end: "" }));
         if (onOTPUsed) onOTPUsed(job._id, "end");
       }
@@ -856,82 +877,15 @@ const JobListingCard = ({
         />
       )}
 
-      {/* Proof of Work Popup */}
-      <AnimatePresence>
-        {showProofPopup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
-            style={{ zIndex: 9998 }}
-            onClick={() => !submittingProof && setShowProofPopup(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-6">
-                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <FileCheck className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Submit Proof of Work
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Sign the transaction to submit proof on blockchain and start
-                  the dispute period
-                </p>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">Job:</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {job.title}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Payment:</span>
-                  <span className="text-sm font-bold text-green-600">
-                    {formatPayment(job.paymentAmount)} SOL
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowProofPopup(false)}
-                  disabled={submittingProof}
-                  className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmitProof}
-                  disabled={submittingProof}
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                >
-                  {submittingProof ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileCheck className="w-5 h-5" />
-                      <span>Submit Proof</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Proof Capture Modal — replaces old simple popup */}
+      <ProofCaptureModal
+        isOpen={showProofPopup}
+        onClose={() => setShowProofPopup(false)}
+        otpValue={otpInput.end}
+        jobId={job._id}
+        jobTitle={job.title}
+        onComplete={handleProofCaptureComplete}
+      />
 
       {/* Worker Dispute Modal */}
       {showDisputeModal && (

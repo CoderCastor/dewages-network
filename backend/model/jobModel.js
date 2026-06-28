@@ -31,8 +31,10 @@ const jobSchema = new mongoose.Schema(
       proofOfWork: {
       accountAddress: { type: String },      // ✅ Blockchain account address
       txSignature: { type: String },         // ✅ Transaction signature
-      proofType: { type: String },           // ✅ "OTP", "Photo", etc.
-      proofData: { type: String },           // ✅ Proof description
+      proofType: { type: String },           // ✅ "OTP", "PHOTO_OTP", etc.
+      proofData: { type: String },           // ✅ JSON bundle / proof description
+      photoUrl: { type: String, default: null },        // ✅ S3 URL of proof photo
+      gpsCoordinates: { type: String, default: null },  // ✅ "lat,lng" from browser geolocation
       submittedAt: { type: Date },           // ✅ Submission timestamp
       isVerified: { type: Boolean, default: false }, // ✅ Verification status
     },
