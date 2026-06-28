@@ -879,6 +879,7 @@ const JobDetailsModalWorker = ({
             </div>
           )}
         </motion.div>
+      </motion.div>
       {/* Proof Capture Modal */}
       <ProofCaptureModal
         isOpen={showProofPopup}
