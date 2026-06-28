@@ -35,6 +35,8 @@ import {
   PublicKey,
   Keypair,
   SystemProgram,
+  TransactionMessage,
+  VersionedTransaction
 } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import idl from "../idl/employment_platform.json" with { type: "json" };
@@ -330,14 +332,10 @@ const JobListingCard = ({
       tx.recentBlockhash = blockhash;
       tx.feePayer = wallet.publicKey;
 
-      // Step 1: Wallet signs the CLEAN transaction (Phantom popup — nothing to strip)
-      const walletSignedTx = await wallet.signTransaction(tx);
-
-      // Step 2: Add keypair signature locally AFTER Phantom returns (pure JS, safe)
-      walletSignedTx.partialSign(proofOfWorkKeypair);
-
-      // Step 3: Both signatures present — broadcast
-      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
+      // The official Solana Wallet Adapter way to send transactions with multiple signers.
+      const txSignature = await wallet.sendTransaction(tx, connection, {
+        signers: [proofOfWorkKeypair]
+      });
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
