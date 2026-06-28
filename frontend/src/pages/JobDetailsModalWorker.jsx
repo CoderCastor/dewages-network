@@ -358,14 +358,23 @@ const JobDetailsModalWorker = ({
         .transaction();
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
+      
+      // Upgrade to VersionedTransaction. This stops the legacy `Transaction` object
+      // from throwing "Missing signature" locally before it even reaches Phantom.
+      const messageV0 = new TransactionMessage({
+        payerKey: wallet.publicKey,
+        recentBlockhash: blockhash,
+        instructions: tx.instructions,
+      }).compileToV0Message();
 
-      // The official Solana Wallet Adapter way to send transactions with multiple signers.
-      // This handles all the mobile deep-linking and Wallet Adapter quirks automatically!
-      const txSignature = await wallet.sendTransaction(tx, connection, {
-        signers: [proofOfWorkKeypair]
-      });
+      const versionedTx = new VersionedTransaction(messageV0);
+
+      // Sign locally with the proofOfWorkKeypair
+      versionedTx.sign([proofOfWorkKeypair]);
+
+      // The official Solana Wallet Adapter way to send transactions.
+      // This handles all mobile deep-linking and Wallet Adapter quirks automatically!
+      const txSignature = await wallet.sendTransaction(versionedTx, connection);
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
