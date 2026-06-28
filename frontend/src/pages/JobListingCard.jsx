@@ -339,11 +339,14 @@ const JobListingCard = ({
 
       const versionedTx = new VersionedTransaction(messageV0);
 
-      // Sign locally with the proofOfWorkKeypair
-      versionedTx.sign([proofOfWorkKeypair]);
+      // STEP 1: Let Phantom Mobile sign the CLEAN transaction first.
+      const walletSignedTx = await wallet.signTransaction(versionedTx);
 
-      // The official Solana Wallet Adapter way to send transactions.
-      const txSignature = await wallet.sendTransaction(versionedTx, connection);
+      // STEP 2: Add our local proof account signature AFTER Phantom returns it.
+      walletSignedTx.sign([proofOfWorkKeypair]);
+
+      // STEP 3: Broadcast the fully signed transaction
+      const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
