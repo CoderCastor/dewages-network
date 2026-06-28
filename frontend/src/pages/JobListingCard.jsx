@@ -36,7 +36,8 @@ import {
   Keypair,
   SystemProgram,
   TransactionMessage,
-  VersionedTransaction
+  VersionedTransaction,
+  TransactionInstruction
 } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import idl from "../idl/employment_platform.json" with { type: "json" };
@@ -329,13 +330,20 @@ const JobListingCard = ({
         .transaction();
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer = wallet.publicKey;
+      
+      const messageV0 = new TransactionMessage({
+        payerKey: wallet.publicKey,
+        recentBlockhash: blockhash,
+        instructions: tx.instructions,
+      }).compileToV0Message();
 
-      // The official Solana Wallet Adapter way to send transactions with multiple signers.
-      const txSignature = await wallet.sendTransaction(tx, connection, {
-        signers: [proofOfWorkKeypair]
-      });
+      const versionedTx = new VersionedTransaction(messageV0);
+
+      // Sign locally with the proofOfWorkKeypair
+      versionedTx.sign([proofOfWorkKeypair]);
+
+      // The official Solana Wallet Adapter way to send transactions.
+      const txSignature = await wallet.sendTransaction(versionedTx, connection);
 
       toast.loading("Confirming transaction...", { id: loadingToast });
       await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
