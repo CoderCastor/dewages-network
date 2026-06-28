@@ -210,6 +210,7 @@ describe("adminAuthMiddleware", () => {
       {
         userId: 12345,
         walletAddress: ADMIN_WALLET,
+        role: "admin",       // adminAuthMiddleware checks decoded.role, not userType
         userType: "admin",
       },
       JWT_SECRET,

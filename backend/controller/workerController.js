@@ -11,17 +11,19 @@ import { walletSchema } from "../schemas/cryptoSchema.js";
 
 const verifyWorkerWallet = async (req, res) => {
   const { publicKey, signature } = req.body;
+  console.log("📥 [Worker Verify] Received request:", { publicKey, hasSignature: !!signature });
 
   const Zresult = walletSchema.safeParse({
     pubkey: publicKey,
   });
 
   if (!Zresult.success) {
-    // console.error(Zresult.error.format());
-    res.json({
-      message: Zresult.error.format(),
+    console.warn("⚠️ [Worker Verify] Zod validation failed:", Zresult.error.format());
+    return res.status(400).json({
+      success: false,
+      message: "Invalid wallet address structure",
+      errors: Zresult.error.format(),
     });
-    return;
   }
 
   const message = new TextEncoder().encode("Signup into Dewages Network");
@@ -33,14 +35,21 @@ const verifyWorkerWallet = async (req, res) => {
       new PublicKey(publicKey).toBytes()
     );
 
+    console.log("ℹ️ [Worker Verify] nacl signature check:", result);
+
     if (!result) {
+      console.warn("❌ [Worker Verify] Signature verification failed (incorrect signature)");
       return res.status(411).json({
+        success: false,
         message: "Incorrect signature",
       });
     }
   } catch (e) {
+    console.error("🔥 [Worker Verify] Error verifying signature:", e);
     return res.status(411).json({
+      success: false,
       message: "Failed to validate signature",
+      error: e.message,
     });
   }
 

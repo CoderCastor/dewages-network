@@ -999,8 +999,11 @@ const verifyJobOTP = async (req, res) => {
 
     // Handle START OTP - Mark as used immediately
     if (otpType === "start") {
+      const { photoUrl, gpsCoordinates } = req.body;
       storedOTP.isUsed = true;
       storedOTP.usedAt = new Date();
+      storedOTP.photoUrl = photoUrl || null;
+      storedOTP.gpsCoordinates = gpsCoordinates || null;
       await job.save();
 
       return res.status(200).json({
@@ -1044,7 +1047,7 @@ const verifyJobOTP = async (req, res) => {
 
 const recordProofSubmission = async (req, res) => {
   try {
-    const { jobId, txSignature, proofAccountAddress, proofType, proofData } =
+    const { jobId, txSignature, proofAccountAddress, proofType, proofData, photoUrl, gpsCoordinates } =
       req.body;
 
     console.log("📝 Recording proof submission:", {
@@ -1108,12 +1111,14 @@ const recordProofSubmission = async (req, res) => {
     // Update status
     job.status = "pending_verification";
 
-    // Store proof of work details
+    // Store proof of work details (including photo + GPS evidence)
     job.proofOfWork = {
       accountAddress: proofAccountAddress,
       txSignature: txSignature,
       proofType: proofType || "OTP",
       proofData: proofData || "End OTP verified and work completed",
+      photoUrl: photoUrl || null,
+      gpsCoordinates: gpsCoordinates || null,
       submittedAt: now,
       isVerified: false,
     };

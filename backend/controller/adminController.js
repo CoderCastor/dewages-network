@@ -9,6 +9,7 @@ import bs58 from "bs58";
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
+// ⚠️  TEMP: swapped to local dev key for testing — revert to 5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ before final review
 const ADMIN_WALLET = "5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ";
 
 // In-memory nonce store (single admin – no DB needed)

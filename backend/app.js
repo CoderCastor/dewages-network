@@ -9,6 +9,7 @@ import authRouter from "./router/authRouter.js";
 import jobRouter from "./router/jobRouter.js";
 import healthRouter from "./router/healthRouter.js";
 import cronRouter from "./router/cronRouter.js";
+import uploadRouter from "./router/uploadRouter.js";
 
 const app = express();
 const PORT = config.port;
@@ -39,6 +40,7 @@ app.use("/v1/auth",authRouter);
 app.use("/v1/job",jobRouter);
 app.use("/health", healthRouter);
 app.use("/cron", cronRouter);
+app.use("/v1/upload", uploadRouter);
 
 app.get("/", (req, res) => {
   res.status(200).json({

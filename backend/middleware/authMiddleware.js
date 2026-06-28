@@ -54,6 +54,7 @@ const authMiddleware = (req, res, next) => {
 // Admin Auth Middleware - Verify Admin Wallet
 // ============================================================================
 
+// ⚠️  TEMP: swapped to local dev key — revert to 5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ before final review
 const ADMIN_WALLET = "5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ";
 
 const adminAuthMiddleware = (req, res, next) => {

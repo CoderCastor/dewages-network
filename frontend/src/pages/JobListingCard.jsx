@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import RatingModal from "@/components/common/RatingModal";
 import DisputeModal from "@/components/common/DisputeModal";
+import ProofCaptureModal from "@/components/ProofCaptureModal";
 import {
   MapPin,
   Clock,
@@ -51,8 +52,10 @@ const JobListingCard = ({
   const [otpInput, setOtpInput] = useState({ start: "", end: "" });
   const [showOTPInput, setShowOTPInput] = useState({ start: false, end: false });
   const [showProofPopup, setShowProofPopup] = useState(false);
+  const [showBeforeProofPopup, setShowBeforeProofPopup] = useState(false);
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
+  const [proofEvidence, setProofEvidence] = useState(null); // {photoUrl, gpsCoordinates, otp}
   const [disputeTimeRemaining, setDisputeTimeRemaining] = useState(null);
   const [proofOfWork, setProofOfWork] = useState(null);
   const [fetchedProof, setFetchedProof] = useState(false);
@@ -238,7 +241,42 @@ const JobListingCard = ({
     }
   };
 
-  const handleSubmitProof = async () => {
+  // Called by BEFORE ProofCaptureModal (Start OTP flow)
+  const handleBeforeProofComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setShowBeforeProofPopup(false);
+    const loadingToast = toast.loading("Verifying Start OTP…");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/verify-otp`,
+        {
+          jobId: job._id,
+          otpCode: otp,
+          otpType: "start",
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
+        },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      if (response.data.success) {
+        toast.success("Job Started! Before-work evidence saved.", { id: loadingToast });
+        setOtpInput((prev) => ({ ...prev, start: "" }));
+        if (onOTPUsed) onOTPUsed(job._id, "start");
+        // store before-photo evidence for display
+        setProofEvidence({ beforePhotoUrl: photoUrl, beforeGps: gpsCoordinates });
+      } else {
+        toast.error(response.data.message || "Invalid Start OTP", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to verify OTP", { id: loadingToast });
+    }
+  };
+
+  // Called by AFTER ProofCaptureModal (End OTP flow)
+  const handleProofCaptureComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setProofEvidence((prev) => ({ ...prev, photoUrl, gpsCoordinates, otp }));
+    setShowProofPopup(false);
+
     if (!wallet.publicKey || !wallet.signTransaction) {
       toast.error("Please connect your wallet");
       return;
@@ -262,10 +300,23 @@ const JobListingCard = ({
       const jobPDA = new PublicKey(proofData.jobPDA);
       const workerPublicKey = new PublicKey(proofData.workerWallet);
 
+      // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
+      // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
+      const photoKey = photoUrl ? photoUrl.split('/').pop()?.slice(0, 50) || 'photo' : 'no-photo';
+      const proofDataBundle = JSON.stringify({
+        otp,
+        photo: photoKey,
+        at: new Date().toISOString(),
+      }).slice(0, 200);
+
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
       const txSignature = await program.methods
-        .submitProofOfWork({ otp: {} }, proofData.proofData, null)
+        .submitProofOfWork(
+          { photo: {} },          // proofType → Photo
+          proofDataBundle,        // compact proof reference (full URL is in MongoDB)
+          null                    // gps stored in MongoDB, keep null here to save space
+        )
         .accounts({
           job: jobPDA,
           proofOfWork: proofOfWorkKeypair.publicKey,
@@ -285,10 +336,12 @@ const JobListingCard = ({
         `${BACKEND_URL}/job/proof-submitted`,
         {
           jobId: job._id,
-          txSignature: txSignature,
-          proofAccountAddress: proofAccountAddress,
-          proofType: "OTP",
-          proofData: proofData.proofData,
+          txSignature,
+          proofAccountAddress,
+          proofType: "PHOTO_OTP",
+          proofData: proofDataBundle,
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
         },
         {
           headers: {
@@ -305,14 +358,15 @@ const JobListingCard = ({
 
         setProofOfWork({
           accountAddress: proofAccountAddress,
-          txSignature: txSignature,
-          proofType: "OTP",
-          proofData: proofData.proofData,
+          txSignature,
+          proofType: "PHOTO_OTP",
+          proofData: proofDataBundle,
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
           submittedAt: new Date(),
           isVerified: false,
         });
 
-        setShowProofPopup(false);
         setOtpInput((prev) => ({ ...prev, end: "" }));
         if (onOTPUsed) onOTPUsed(job._id, "end");
       }
@@ -437,7 +491,10 @@ const JobListingCard = ({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (!isStart && !workerRatingDone && !job.employerRating) {
+          if (isStart) {
+            // Before-work photo first, then OTP
+            setShowBeforeProofPopup(true);
+          } else if (!workerRatingDone && !job.employerRating) {
             // Must rate company before entering End OTP
             setShowWorkerRatingModal(true);
           } else {
@@ -856,82 +913,27 @@ const JobListingCard = ({
         />
       )}
 
-      {/* Proof of Work Popup */}
-      <AnimatePresence>
-        {showProofPopup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
-            style={{ zIndex: 9998 }}
-            onClick={() => !submittingProof && setShowProofPopup(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-6">
-                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <FileCheck className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Submit Proof of Work
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Sign the transaction to submit proof on blockchain and start
-                  the dispute period
-                </p>
-              </div>
+      {/* Before-Work Proof Capture Modal (Start OTP) */}
+      <ProofCaptureModal
+        isOpen={showBeforeProofPopup}
+        onClose={() => setShowBeforeProofPopup(false)}
+        otpValue=""
+        jobId={job._id}
+        jobTitle={job.title}
+        mode="before"
+        onComplete={handleBeforeProofComplete}
+      />
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">Job:</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {job.title}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Payment:</span>
-                  <span className="text-sm font-bold text-green-600">
-                    {formatPayment(job.paymentAmount)} SOL
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowProofPopup(false)}
-                  disabled={submittingProof}
-                  className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmitProof}
-                  disabled={submittingProof}
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                >
-                  {submittingProof ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileCheck className="w-5 h-5" />
-                      <span>Submit Proof</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* After-Work Proof Capture Modal (End OTP + blockchain) */}
+      <ProofCaptureModal
+        isOpen={showProofPopup}
+        onClose={() => setShowProofPopup(false)}
+        otpValue={otpInput.end}
+        jobId={job._id}
+        jobTitle={job.title}
+        mode="after"
+        onComplete={handleProofCaptureComplete}
+      />
 
       {/* Worker Dispute Modal */}
       {showDisputeModal && (

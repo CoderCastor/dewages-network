@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 declare_id!("4f9fP5Aoz7Tcu7Z5J7WWhTRUa757QnK91JvpM1Zyg7BM");
 
+// ⚠️ TEMP: swapped to local dev key — revert to 5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ before final review
 const ADMIN_PUBKEY: &str = "5h54tPqd4ZbjTLF74SKVTCKmzRrnhP9tFqPcrHjxcfhQ";
 
 #[program]

@@ -1,0 +1,41 @@
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from "uuid";
+
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || "ap-south-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const BUCKET = process.env.S3_BUCKET_NAME;
+const BUCKET_URL =
+  process.env.S3_BUCKET_URL ||
+  `https://${BUCKET}.s3.${process.env.AWS_REGION || "ap-south-1"}.amazonaws.com`;
+
+/**
+ * Upload a proof photo buffer to S3.
+ * Returns the public URL of the uploaded file.
+ * @param {Buffer} fileBuffer   - Raw file buffer from multer
+ * @param {string} mimeType     - e.g. "image/jpeg"
+ * @param {string} jobId        - Used to namespace the S3 key
+ * @param {string} walletAddress
+ */
+export async function uploadProofPhoto(fileBuffer, mimeType, jobId, walletAddress) {
+  const ext = mimeType.split("/")[1] || "jpg";
+  const key = `proof-photos/${jobId}/${walletAddress}-${uuidv4()}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: mimeType,
+      // Makes the object publicly readable — requires bucket ACL enabled
+      ACL: "public-read",
+    })
+  );
+
+  return `${BUCKET_URL}/${key}`;
+}

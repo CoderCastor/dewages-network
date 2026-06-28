@@ -23,11 +23,17 @@ import {
   Timer,
   AlertCircle,
   TrendingUp,
+  FileCheck,
 } from "lucide-react";
 import axios from "axios";
-import { BACKEND_URL } from "../env-variables";
+import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
 import toast from "react-hot-toast";
 import RatingModal from "../components/common/RatingModal";
+import ProofCaptureModal from "../components/ProofCaptureModal";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { Connection, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import IDL from "../idl/employment_platform.json" with { type: "json" };
 
 const JobDetailsModalWorker = ({
   isOpen,
@@ -46,6 +52,12 @@ const JobDetailsModalWorker = ({
   });
   const [disputeTimeRemaining, setDisputeTimeRemaining] = useState(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const wallet = useWallet();
+  const { connection } = useConnection();
+  const [showProofPopup, setShowProofPopup] = useState(false);
+  const [showBeforeProofPopup, setShowBeforeProofPopup] = useState(false);
+  const [proofData, setProofData] = useState(null);
+  const [submittingProof, setSubmittingProof] = useState(false);
 
   // Calculate dispute period countdown
   useEffect(() => {
@@ -225,21 +237,27 @@ const JobDetailsModalWorker = ({
       );
 
       if (response.data.success) {
-        toast.success(
-          `${
-            otpType === "start" ? "Job Started" : "Job Completed"
-          } Successfully!`,
-          { id: loadingToast }
-        );
+        if (otpType === "start") {
+          toast.success("Job Started Successfully!", { id: loadingToast });
+          setOtpInput((prev) => ({ ...prev, [otpType]: "" }));
+          setShowOTPInput((prev) => ({ ...prev, [otpType]: false }));
+        }
 
-        // Clear input and hide form
-        setOtpInput((prev) => ({ ...prev, [otpType]: "" }));
-        setShowOTPInput((prev) => ({ ...prev, [otpType]: false }));
-
-        // Close modal after success
-        setTimeout(() => {
-          onClose();
-        }, 1500);
+        if (otpType === "end" && response.data.requiresBlockchainProof) {
+          toast.success("OTP Verified! Please submit proof on blockchain", {
+            id: loadingToast,
+          });
+          setProofData(response.data.blockchainData);
+          setShowProofPopup(true);
+          setShowOTPInput((prev) => ({ ...prev, [otpType]: false }));
+        } else if (otpType === "end") {
+          toast.success("Job Completed Successfully!", { id: loadingToast });
+          setOtpInput((prev) => ({ ...prev, [otpType]: "" }));
+          setShowOTPInput((prev) => ({ ...prev, [otpType]: false }));
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+        }
       } else {
         toast.error(response.data.message || "Failed to verify OTP", {
           id: loadingToast,
@@ -254,6 +272,127 @@ const JobDetailsModalWorker = ({
       toast.error(errorMessage, { id: loadingToast });
     } finally {
       setSubmittingOTP(null);
+    }
+  };
+
+  const handleBeforeProofComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setShowBeforeProofPopup(false);
+    const loadingToast = toast.loading("Verifying Start OTP…");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/verify-otp`,
+        {
+          jobId: job._id,
+          otpCode: otp,
+          otpType: "start",
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
+        },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      if (response.data.success) {
+        toast.success("Job Started! Before-work evidence saved.", { id: loadingToast });
+        setOtpInput((prev) => ({ ...prev, start: "" }));
+      } else {
+        toast.error(response.data.message || "Invalid Start OTP", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to verify OTP", { id: loadingToast });
+    }
+  };
+
+  const handleProofCaptureComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setShowProofPopup(false);
+
+    if (!wallet.publicKey || !wallet.signTransaction) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    setSubmittingProof(true);
+    const loadingToast = toast.loading("Preparing blockchain transaction...");
+
+    try {
+      const connection = new Connection(RPC_URL, "confirmed");
+      const provider = new AnchorProvider(
+        connection,
+        wallet,
+        AnchorProvider.defaultOptions()
+      );
+      const program = new Program(IDL, PROGRAM_ID, provider);
+
+      const proofOfWorkKeypair = Keypair.generate();
+      const proofAccountAddress = proofOfWorkKeypair.publicKey.toString();
+
+      const jobPDA = new PublicKey(proofData.jobPDA);
+      const workerPublicKey = new PublicKey(proofData.workerWallet);
+
+      // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
+      // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
+      const photoKey = photoUrl ? photoUrl.split('/').pop()?.slice(0, 50) || 'photo' : 'no-photo';
+      const proofDataBundle = JSON.stringify({
+        otp,
+        photo: photoKey,
+        at: new Date().toISOString(),
+      }).slice(0, 200);
+
+      toast.loading("Please sign the transaction...", { id: loadingToast });
+
+      const txSignature = await program.methods
+        .submitProofOfWork(
+          { photo: {} },          // proofType → Photo
+          proofDataBundle,        // compact proof reference (full URL is in MongoDB)
+          null                    // gps stored in MongoDB, keep null here to save space
+        )
+        .accounts({
+          job: jobPDA,
+          proofOfWork: proofOfWorkKeypair.publicKey,
+          worker: workerPublicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([proofOfWorkKeypair])
+        .rpc();
+
+      toast.loading("Confirming transaction...", { id: loadingToast });
+      await connection.confirmTransaction(txSignature, "confirmed");
+
+      toast.loading("Updating database...", { id: loadingToast });
+
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/proof-submitted`,
+        {
+          jobId: job._id,
+          txSignature,
+          proofAccountAddress,
+          proofType: "PHOTO_OTP",
+          proofData: proofDataBundle,
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Proof submitted! Dispute period started.", {
+          id: loadingToast,
+        });
+        setOtpInput((prev) => ({ ...prev, end: "" }));
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Error submitting proof:", error);
+      toast.error(error.message || "Failed to submit proof", { id: loadingToast });
+    } finally {
+      setSubmittingProof(false);
     }
   };
 
@@ -379,9 +518,14 @@ const JobDetailsModalWorker = ({
     return (
       <>
         <button
-          onClick={() =>
-            setShowOTPInput((prev) => ({ ...prev, [otpType]: true }))
-          }
+          onClick={() => {
+            if (isStart) {
+              // Before-work photo first, then OTP
+              setShowBeforeProofPopup(true);
+            } else {
+              setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
+            }
+          }}
           className={`w-full flex items-center justify-center space-x-2 py-3 px-4 ${
             isStart
               ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
@@ -770,6 +914,26 @@ const JobDetailsModalWorker = ({
           )}
         </motion.div>
       </motion.div>
+      {/* Before-Work Proof Capture Modal (Start OTP) */}
+      <ProofCaptureModal
+        isOpen={showBeforeProofPopup}
+        onClose={() => setShowBeforeProofPopup(false)}
+        otpValue=""
+        jobId={job._id}
+        jobTitle={job.title}
+        mode="before"
+        onComplete={handleBeforeProofComplete}
+      />
+      {/* After-Work Proof Capture Modal (End OTP + blockchain) */}
+      <ProofCaptureModal
+        isOpen={showProofPopup}
+        onClose={() => setShowProofPopup(false)}
+        otpValue={otpInput.end}
+        jobId={job._id}
+        jobTitle={job.title}
+        mode="after"
+        onComplete={handleProofCaptureComplete}
+      />
     </AnimatePresence>
   );
 };
