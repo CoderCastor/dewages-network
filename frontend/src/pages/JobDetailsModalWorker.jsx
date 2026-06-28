@@ -326,7 +326,11 @@ const JobDetailsModalWorker = ({
       const proofAccountAddress = proofOfWorkKeypair.publicKey.toString();
 
       const jobPDA = new PublicKey(proofData.jobPDA);
-      const workerPublicKey = new PublicKey(proofData.workerWallet);
+      // IMPORTANT: `worker` must be the connected wallet (Signer) — NOT proofData.workerWallet
+      // The smart contract declares `worker: Signer<'info>`, so Solana requires the transaction
+      // signer and the `worker` account to be the SAME key. Using a stored string causes
+      // "Missing signature for public key" error.
+      const workerPublicKey = wallet.publicKey;
 
       // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
       // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
@@ -339,7 +343,10 @@ const JobDetailsModalWorker = ({
 
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
-      const txSignature = await program.methods
+      // We have TWO signers: the user's browser wallet + the new proofOfWorkKeypair.
+      // Anchor's .signers([keypair]).rpc() doesn't handle this reliably with browser wallets.
+      // Instead we: build tx → partialSign with keypair → wallet signs → send raw.
+      const tx = await program.methods
         .submitProofOfWork(
           { photo: {} },          // proofType → Photo
           proofDataBundle,        // compact proof reference (full URL is in MongoDB)
@@ -351,11 +358,23 @@ const JobDetailsModalWorker = ({
           worker: workerPublicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([proofOfWorkKeypair])
-        .rpc();
+        .transaction();
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = wallet.publicKey;
+
+      // Step 1: Sign with the new proof account keypair (local, no popup needed)
+      tx.partialSign(proofOfWorkKeypair);
+
+      // Step 2: Send to Phantom/wallet for the worker's signature (triggers popup)
+      const signedTx = await wallet.signTransaction(tx);
+
+      // Step 3: Broadcast
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
-      await connection.confirmTransaction(txSignature, "confirmed");
+      await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
 
       toast.loading("Updating database...", { id: loadingToast });
 

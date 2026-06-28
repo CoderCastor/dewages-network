@@ -298,7 +298,7 @@ const JobListingCard = ({
       const proofAccountAddress = proofOfWorkKeypair.publicKey.toString();
 
       const jobPDA = new PublicKey(proofData.jobPDA);
-      const workerPublicKey = new PublicKey(proofData.workerWallet);
+      const workerPublicKey = wallet.publicKey; // Must match the signer (Signer<'info> in contract)
 
       // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
       // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
@@ -311,11 +311,13 @@ const JobListingCard = ({
 
       toast.loading("Please sign the transaction...", { id: loadingToast });
 
-      const txSignature = await program.methods
+      // Two signers: browser wallet (worker) + local proofOfWorkKeypair.
+      // Build → partialSign → wallet.signTransaction → sendRaw is the correct approach.
+      const tx = await program.methods
         .submitProofOfWork(
-          { photo: {} },          // proofType → Photo
-          proofDataBundle,        // compact proof reference (full URL is in MongoDB)
-          null                    // gps stored in MongoDB, keep null here to save space
+          { photo: {} },
+          proofDataBundle,
+          null
         )
         .accounts({
           job: jobPDA,
@@ -323,11 +325,23 @@ const JobListingCard = ({
           worker: workerPublicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([proofOfWorkKeypair])
-        .rpc();
+        .transaction();
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = wallet.publicKey;
+
+      // Step 1: Sign with local keypair (no popup)
+      tx.partialSign(proofOfWorkKeypair);
+
+      // Step 2: Wallet signs (triggers Phantom popup)
+      const signedTx = await wallet.signTransaction(tx);
+
+      // Step 3: Broadcast
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
-      await connection.confirmTransaction(txSignature, "confirmed");
+      await connection.confirmTransaction({ signature: txSignature, blockhash, lastValidBlockHeight }, "confirmed");
 
       toast.loading("Updating database...", { id: loadingToast });
 
