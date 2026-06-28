@@ -999,8 +999,11 @@ const verifyJobOTP = async (req, res) => {
 
     // Handle START OTP - Mark as used immediately
     if (otpType === "start") {
+      const { photoUrl, gpsCoordinates } = req.body;
       storedOTP.isUsed = true;
       storedOTP.usedAt = new Date();
+      storedOTP.photoUrl = photoUrl || null;
+      storedOTP.gpsCoordinates = gpsCoordinates || null;
       await job.save();
 
       return res.status(200).json({

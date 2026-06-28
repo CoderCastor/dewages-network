@@ -26,6 +26,8 @@ const jobSchema = new mongoose.Schema(
       expiresAt: { type: Date },
       isUsed: { type: Boolean, default: false },
       usedAt: { type: Date },
+      photoUrl: { type: String, default: null },
+      gpsCoordinates: { type: String, default: null },
     },
 
       proofOfWork: {

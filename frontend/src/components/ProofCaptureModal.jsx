@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera,
@@ -9,24 +9,25 @@ import {
   RefreshCw,
   AlertCircle,
   ShieldCheck,
+  PlayCircle,
 } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL } from "@/env-variables";
 
 /**
  * ProofCaptureModal
- * Three-step evidence capture before the blockchain submission:
- *   Step 1 — Take a photo  (browser camera → S3 upload)
- *   Step 2 — GPS location  (captured silently in background during step 1)
- *   Step 3 — Enter OTP     (existing flow)
  *
- * Props:
- *   isOpen       {boolean}
- *   onClose      {() => void}
- *   otpValue     {string}       — the OTP the worker entered
- *   jobId        {string}       — MongoDB job _id
- *   jobTitle     {string}
- *   onComplete   {({photoUrl, gpsCoordinates, otp}) => void}  — fires when all 3 done
+ * mode="before"  (Start OTP)
+ *   Step 1 — Take "before" photo (camera → S3)
+ *   Step 2 — Confirm GPS
+ *   Step 3 — Enter START OTP → fires onComplete({photoUrl, gpsCoordinates, otp})
+ *             Parent calls /job/verify-otp (start)
+ *
+ * mode="after"  (End OTP, default)
+ *   Step 1 — Take "after" photo
+ *   Step 2 — Confirm GPS
+ *   Step 3 — Enter END OTP → fires onComplete({photoUrl, gpsCoordinates, otp})
+ *             Parent triggers blockchain submitProofOfWork
  */
 export default function ProofCaptureModal({
   isOpen,
@@ -34,24 +35,24 @@ export default function ProofCaptureModal({
   otpValue,
   jobId,
   jobTitle,
+  mode = "after",
   onComplete,
 }) {
-  const [step, setStep] = useState(1); // 1=photo, 2=gps-confirm, 3=otp
-  const [photoBlob, setPhotoBlob] = useState(null);
+  const isBefore = mode === "before";
+
+  const [step, setStep] = useState(1);
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState(null);         // S3 URL after upload
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [gpsCoordinates, setGpsCoordinates] = useState(null); // "lat,lng"
+  const [gpsCoordinates, setGpsCoordinates] = useState(null);
   const [gpsError, setGpsError] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [otp, setOtp] = useState(otpValue || "");
   const fileInputRef = useRef(null);
 
-  // ── GPS: start fetching as soon as modal opens ────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     setStep(1);
-    setPhotoBlob(null);
     setPhotoPreview(null);
     setPhotoUrl(null);
     setGpsCoordinates(null);
@@ -73,7 +74,7 @@ export default function ProofCaptureModal({
         setGpsCoordinates(coords);
         setGpsLoading(false);
       },
-      (err) => {
+      () => {
         setGpsError("Could not get location. Please enable location access.");
         setGpsLoading(false);
       },
@@ -81,17 +82,10 @@ export default function ProofCaptureModal({
     );
   };
 
-  // ── Photo: file input change handler ─────────────────────────────────────
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Show preview immediately
-    const previewUrl = URL.createObjectURL(file);
-    setPhotoPreview(previewUrl);
-    setPhotoBlob(file);
-
-    // Upload to S3 via backend
+    setPhotoPreview(URL.createObjectURL(file));
     await uploadPhotoToS3(file);
   };
 
@@ -102,38 +96,33 @@ export default function ProofCaptureModal({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("jobId", jobId);
+      formData.append("photoType", isBefore ? "before" : "after");
       if (gpsCoordinates) {
         const [lat, lng] = gpsCoordinates.split(",");
         formData.append("latitude", lat);
         formData.append("longitude", lng);
       }
-
       const res = await axios.post(`${BACKEND_URL}/upload/proof-photo`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
-
       if (res.data.success) {
         setPhotoUrl(res.data.photoUrl);
-        // Move to GPS confirmation step after upload
-        setStep(2);
       } else {
         throw new Error(res.data.message || "Upload failed");
       }
     } catch (err) {
       console.error("Photo upload error:", err);
-      // Don't block the flow — let user retry or continue without S3 URL
       setPhotoUrl(null);
-      setStep(2);
     } finally {
       setUploadingPhoto(false);
+      setStep(2);
     }
   };
 
   const handleRetakePhoto = () => {
-    setPhotoBlob(null);
     setPhotoPreview(null);
     setPhotoUrl(null);
     setStep(1);
@@ -141,14 +130,13 @@ export default function ProofCaptureModal({
   };
 
   const handleFinish = () => {
-    onComplete({
-      photoUrl,
-      gpsCoordinates,
-      otp,
-    });
+    onComplete({ photoUrl, gpsCoordinates, otp });
   };
 
   if (!isOpen) return null;
+
+  const headerGrad = isBefore ? "from-green-600 to-emerald-600" : "from-blue-600 to-indigo-600";
+  const btnColor = isBefore ? "bg-green-600 hover:bg-green-700" : "bg-indigo-600 hover:bg-indigo-700";
 
   return (
     <AnimatePresence>
@@ -158,7 +146,7 @@ export default function ProofCaptureModal({
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4"
         style={{ zIndex: 9999 }}
-        onClick={() => onClose()}
+        onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.92, opacity: 0 }}
@@ -168,40 +156,42 @@ export default function ProofCaptureModal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
-            <h3 className="text-white font-bold text-lg">Submit Proof of Work</h3>
-            <p className="text-blue-100 text-xs mt-0.5">{jobTitle}</p>
-            {/* Step indicator */}
+          <div className={`bg-gradient-to-r ${headerGrad} px-6 py-4`}>
+            <h3 className="text-white font-bold text-lg">
+              {isBefore ? "📸 Before-Work Evidence" : "✅ Submit Proof of Work"}
+            </h3>
+            <p className="text-white/80 text-xs mt-0.5">{jobTitle}</p>
             <div className="flex items-center gap-2 mt-3">
               {[1, 2, 3].map((s) => (
                 <div
                   key={s}
                   className={`flex-1 h-1 rounded-full transition-all duration-300 ${
-                    s <= step ? "bg-white" : "bg-blue-400 bg-opacity-40"
+                    s <= step ? "bg-white" : "bg-white/30"
                   }`}
                 />
               ))}
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-blue-100 text-xs">Photo</span>
-              <span className="text-blue-100 text-xs">Location</span>
-              <span className="text-blue-100 text-xs">OTP</span>
+              <span className="text-white/70 text-xs">Photo</span>
+              <span className="text-white/70 text-xs">Location</span>
+              <span className="text-white/70 text-xs">{isBefore ? "Start OTP" : "End OTP"}</span>
             </div>
           </div>
 
           <div className="p-6">
-            {/* ── STEP 1: Take Photo ───────────────────────────────────── */}
+            {/* STEP 1: Take Photo */}
             {step === 1 && (
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Camera className="w-8 h-8 text-blue-600" />
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Camera className="w-8 h-8 text-gray-600" />
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-1">
-                  Take a Photo at the Worksite
+                  {isBefore ? 'Take a "Before" Photo' : 'Take an "After" Photo'}
                 </h4>
                 <p className="text-gray-500 text-sm mb-6">
-                  This photo will be saved as tamper-proof evidence. Take it at
-                  the job location.
+                  {isBefore
+                    ? "Capture the work site before you begin — proof you were present."
+                    : "Capture the completed work as tamper-proof evidence."}
                 </p>
 
                 {uploadingPhoto ? (
@@ -221,7 +211,7 @@ export default function ProofCaptureModal({
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                      className={`w-full py-3 ${btnColor} text-white rounded-xl font-semibold active:scale-95 transition-all flex items-center justify-center gap-2`}
                     >
                       <Camera className="w-5 h-5" />
                       Open Camera
@@ -236,17 +226,12 @@ export default function ProofCaptureModal({
               </div>
             )}
 
-            {/* ── STEP 2: Confirm GPS + Photo Preview ─────────────────── */}
+            {/* STEP 2: Confirm GPS + Photo Preview */}
             {step === 2 && (
               <div>
-                {/* Photo preview */}
                 {photoPreview && (
                   <div className="relative mb-4 rounded-xl overflow-hidden">
-                    <img
-                      src={photoPreview}
-                      alt="Proof photo"
-                      className="w-full h-44 object-cover"
-                    />
+                    <img src={photoPreview} alt="Proof" className="w-full h-44 object-cover" />
                     {photoUrl ? (
                       <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> Saved
@@ -256,43 +241,35 @@ export default function ProofCaptureModal({
                         <AlertCircle className="w-3 h-3" /> Local only
                       </div>
                     )}
+                    {isBefore && (
+                      <div className="absolute bottom-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                        BEFORE
+                      </div>
+                    )}
+                    {!isBefore && (
+                      <div className="absolute bottom-2 left-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                        AFTER
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* GPS status */}
                 <div className="bg-gray-50 rounded-xl p-3 mb-4">
                   <div className="flex items-center gap-2">
                     <MapPin
                       className={`w-5 h-5 flex-shrink-0 ${
-                        gpsCoordinates
-                          ? "text-green-600"
-                          : gpsError
-                          ? "text-red-500"
-                          : "text-blue-500 animate-pulse"
+                        gpsCoordinates ? "text-green-600" : gpsError ? "text-red-500" : "text-blue-500 animate-pulse"
                       }`}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-gray-700">
-                        {gpsCoordinates
-                          ? "Location Captured"
-                          : gpsError
-                          ? "Location Unavailable"
-                          : "Getting Location…"}
+                        {gpsCoordinates ? "Location Captured" : gpsError ? "Location Unavailable" : "Getting Location…"}
                       </p>
-                      {gpsCoordinates && (
-                        <p className="text-xs text-gray-500 truncate font-mono">
-                          {gpsCoordinates}
-                        </p>
-                      )}
-                      {gpsError && (
-                        <p className="text-xs text-red-500">{gpsError}</p>
-                      )}
+                      {gpsCoordinates && <p className="text-xs text-gray-500 truncate font-mono">{gpsCoordinates}</p>}
+                      {gpsError && <p className="text-xs text-red-500">{gpsError}</p>}
                     </div>
                     {(gpsError || !gpsCoordinates) && !gpsLoading && (
-                      <button
-                        onClick={fetchGPS}
-                        className="text-blue-600 hover:text-blue-800 p-1"
-                      >
+                      <button onClick={fetchGPS} className="text-blue-600 hover:text-blue-800 p-1">
                         <RefreshCw className="w-4 h-4" />
                       </button>
                     )}
@@ -308,7 +285,7 @@ export default function ProofCaptureModal({
                   </button>
                   <button
                     onClick={() => setStep(3)}
-                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+                    className={`flex-1 py-2.5 ${btnColor} text-white rounded-xl text-sm font-semibold transition-colors`}
                   >
                     Continue →
                   </button>
@@ -316,48 +293,54 @@ export default function ProofCaptureModal({
               </div>
             )}
 
-            {/* ── STEP 3: Enter OTP + Final Submit ────────────────────── */}
+            {/* STEP 3: OTP Entry */}
             {step === 3 && (
               <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <KeyRound className="w-8 h-8 text-indigo-600" />
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  {isBefore ? (
+                    <PlayCircle className="w-8 h-8 text-green-600" />
+                  ) : (
+                    <KeyRound className="w-8 h-8 text-indigo-600" />
+                  )}
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Enter End OTP</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">
+                  {isBefore ? "Enter Start OTP" : "Enter End OTP"}
+                </h4>
                 <p className="text-gray-500 text-sm mb-4">
-                  Ask the employer for the end OTP to confirm job completion.
+                  {isBefore
+                    ? "Ask the employer for the start OTP to begin work."
+                    : "Ask the employer for the end OTP to confirm completion."}
                 </p>
 
                 <input
                   type="text"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Enter 6-digit OTP"
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-center text-xl font-mono tracking-widest mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  maxLength={8}
+                  maxLength={6}
                 />
 
-                {/* Evidence summary */}
                 <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-left">
                   <p className="text-xs font-semibold text-green-800 mb-2 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Evidence Bundle
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    {isBefore ? "Before-Work Evidence" : "After-Work Evidence"}
                   </p>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-xs text-green-700">
                       <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                      Photo {photoUrl ? "uploaded to cloud" : "captured locally"}
+                      {isBefore ? "Before photo" : "After photo"} {photoUrl ? "uploaded to cloud" : "captured locally"}
                     </div>
                     <div className={`flex items-center gap-2 text-xs ${gpsCoordinates ? "text-green-700" : "text-gray-500"}`}>
-                      {gpsCoordinates ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                      )}
+                      {gpsCoordinates ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />}
                       GPS {gpsCoordinates ? "recorded" : "not available"}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-green-700">
-                      <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                      Timestamp recorded on Solana blockchain
-                    </div>
+                    {!isBefore && (
+                      <div className="flex items-center gap-2 text-xs text-green-700">
+                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                        Timestamp recorded on Solana blockchain
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -370,11 +353,14 @@ export default function ProofCaptureModal({
                   </button>
                   <button
                     onClick={handleFinish}
-                    disabled={!otp.trim()}
-                    className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    disabled={otp.length !== 6}
+                    className={`flex-1 py-2.5 ${btnColor} text-white rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2`}
                   >
-                    <ShieldCheck className="w-4 h-4" />
-                    Submit Proof
+                    {isBefore ? (
+                      <><PlayCircle className="w-4 h-4" /> Start Job</>
+                    ) : (
+                      <><ShieldCheck className="w-4 h-4" /> Submit Proof</>
+                    )}
                   </button>
                 </div>
               </div>

@@ -55,6 +55,7 @@ const JobDetailsModalWorker = ({
   const wallet = useWallet();
   const { connection } = useConnection();
   const [showProofPopup, setShowProofPopup] = useState(false);
+  const [showBeforeProofPopup, setShowBeforeProofPopup] = useState(false);
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
 
@@ -274,6 +275,33 @@ const JobDetailsModalWorker = ({
     }
   };
 
+  const handleBeforeProofComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setShowBeforeProofPopup(false);
+    const loadingToast = toast.loading("Verifying Start OTP…");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/verify-otp`,
+        {
+          jobId: job._id,
+          otpCode: otp,
+          otpType: "start",
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
+        },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      if (response.data.success) {
+        toast.success("Job Started! Before-work evidence saved.", { id: loadingToast });
+        setOtpInput((prev) => ({ ...prev, start: "" }));
+      } else {
+        toast.error(response.data.message || "Invalid Start OTP", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to verify OTP", { id: loadingToast });
+    }
+  };
+
   const handleProofCaptureComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
     setShowProofPopup(false);
 
@@ -489,9 +517,14 @@ const JobDetailsModalWorker = ({
     return (
       <>
         <button
-          onClick={() =>
-            setShowOTPInput((prev) => ({ ...prev, [otpType]: true }))
-          }
+          onClick={() => {
+            if (isStart) {
+              // Before-work photo first, then OTP
+              setShowBeforeProofPopup(true);
+            } else {
+              setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
+            }
+          }}
           className={`w-full flex items-center justify-center space-x-2 py-3 px-4 ${
             isStart
               ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
@@ -880,13 +913,24 @@ const JobDetailsModalWorker = ({
           )}
         </motion.div>
       </motion.div>
-      {/* Proof Capture Modal */}
+      {/* Before-Work Proof Capture Modal (Start OTP) */}
+      <ProofCaptureModal
+        isOpen={showBeforeProofPopup}
+        onClose={() => setShowBeforeProofPopup(false)}
+        otpValue=""
+        jobId={job._id}
+        jobTitle={job.title}
+        mode="before"
+        onComplete={handleBeforeProofComplete}
+      />
+      {/* After-Work Proof Capture Modal (End OTP + blockchain) */}
       <ProofCaptureModal
         isOpen={showProofPopup}
         onClose={() => setShowProofPopup(false)}
         otpValue={otpInput.end}
         jobId={job._id}
         jobTitle={job.title}
+        mode="after"
         onComplete={handleProofCaptureComplete}
       />
     </AnimatePresence>

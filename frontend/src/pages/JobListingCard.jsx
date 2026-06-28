@@ -52,6 +52,7 @@ const JobListingCard = ({
   const [otpInput, setOtpInput] = useState({ start: "", end: "" });
   const [showOTPInput, setShowOTPInput] = useState({ start: false, end: false });
   const [showProofPopup, setShowProofPopup] = useState(false);
+  const [showBeforeProofPopup, setShowBeforeProofPopup] = useState(false);
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
   const [proofEvidence, setProofEvidence] = useState(null); // {photoUrl, gpsCoordinates, otp}
@@ -240,9 +241,40 @@ const JobListingCard = ({
     }
   };
 
-  // Called by ProofCaptureModal when all 3 steps are done
+  // Called by BEFORE ProofCaptureModal (Start OTP flow)
+  const handleBeforeProofComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
+    setShowBeforeProofPopup(false);
+    const loadingToast = toast.loading("Verifying Start OTP…");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/verify-otp`,
+        {
+          jobId: job._id,
+          otpCode: otp,
+          otpType: "start",
+          photoUrl: photoUrl || null,
+          gpsCoordinates: gpsCoordinates || null,
+        },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      if (response.data.success) {
+        toast.success("Job Started! Before-work evidence saved.", { id: loadingToast });
+        setOtpInput((prev) => ({ ...prev, start: "" }));
+        if (onOTPUsed) onOTPUsed(job._id, "start");
+        // store before-photo evidence for display
+        setProofEvidence({ beforePhotoUrl: photoUrl, beforeGps: gpsCoordinates });
+      } else {
+        toast.error(response.data.message || "Invalid Start OTP", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to verify OTP", { id: loadingToast });
+    }
+  };
+
+  // Called by AFTER ProofCaptureModal (End OTP flow)
   const handleProofCaptureComplete = async ({ photoUrl, gpsCoordinates, otp }) => {
-    setProofEvidence({ photoUrl, gpsCoordinates, otp });
+    setProofEvidence((prev) => ({ ...prev, photoUrl, gpsCoordinates, otp }));
     setShowProofPopup(false);
 
     if (!wallet.publicKey || !wallet.signTransaction) {
@@ -458,7 +490,10 @@ const JobListingCard = ({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (!isStart && !workerRatingDone && !job.employerRating) {
+          if (isStart) {
+            // Before-work photo first, then OTP
+            setShowBeforeProofPopup(true);
+          } else if (!workerRatingDone && !job.employerRating) {
             // Must rate company before entering End OTP
             setShowWorkerRatingModal(true);
           } else {
@@ -877,13 +912,25 @@ const JobListingCard = ({
         />
       )}
 
-      {/* Proof Capture Modal — replaces old simple popup */}
+      {/* Before-Work Proof Capture Modal (Start OTP) */}
+      <ProofCaptureModal
+        isOpen={showBeforeProofPopup}
+        onClose={() => setShowBeforeProofPopup(false)}
+        otpValue=""
+        jobId={job._id}
+        jobTitle={job.title}
+        mode="before"
+        onComplete={handleBeforeProofComplete}
+      />
+
+      {/* After-Work Proof Capture Modal (End OTP + blockchain) */}
       <ProofCaptureModal
         isOpen={showProofPopup}
         onClose={() => setShowProofPopup(false)}
         otpValue={otpInput.end}
         jobId={job._id}
         jobTitle={job.title}
+        mode="after"
         onComplete={handleProofCaptureComplete}
       />
 
