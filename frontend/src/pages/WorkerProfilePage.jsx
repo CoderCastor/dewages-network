@@ -258,18 +258,7 @@ const WorkerProfilePage = () => {
               <span>Back to Dashboard</span>
             </button>
             <h1 className="text-xl font-bold text-gray-900">My Profile</h1>
-            <button
-              onClick={handleDownloadPDF}
-              disabled={pdfLoading || !profile}
-              className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
-            >
-              {pdfLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileDown className="w-4 h-4" />
-              )}
-              <span>{pdfLoading ? "Generating..." : "Download Certificate"}</span>
-            </button>
+            <div className="w-24" />
           </div>
         </div>
       </div>
