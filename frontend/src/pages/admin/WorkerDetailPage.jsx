@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import {
   ArrowLeft,
@@ -20,7 +20,7 @@ import {
   Shield,
   XCircle,
 } from "lucide-react";
-import { BACKEND_URL, PROGRAM_ID } from "@/env-variables";
+import { BACKEND_URL, PROGRAM_ID, RPC_URL } from "@/env-variables";
 import IDL from "@/idl/employment_platform.json" with { type: "json" };
 import axios from "axios";
 
@@ -30,7 +30,7 @@ const PROGRAM_ID_KEY = new PublicKey(PROGRAM_ID);
 export default function WorkerDetailPage() {
   const { workerId } = useParams();
   const navigate = useNavigate();
-  const { connection } = useConnection();
+  const connection = new Connection(RPC_URL, "confirmed");
   const wallet = useWallet();
   const [worker, setWorker] = useState(null);
   const [loading, setLoading] = useState(true);
