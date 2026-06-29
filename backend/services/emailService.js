@@ -1,6 +1,6 @@
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /**
  * Send a 6-digit OTP to the given email address.
@@ -8,8 +8,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  * @param {string} otp   - 6-digit OTP string
  */
 export const sendOTPEmail = async (email, otp) => {
-  const { error } = await resend.emails.send({
-    from: "DeWages Network <onboarding@resend.dev>",
+  await sgMail.send({
+    from: {
+      email: process.env.SENDGRID_FROM_EMAIL,
+      name: "DeWages Network",
+    },
     to: email,
     subject: "Your Email Verification OTP — DeWages Network",
     html: `
@@ -50,8 +53,4 @@ export const sendOTPEmail = async (email, otp) => {
       </div>
     `,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 };
