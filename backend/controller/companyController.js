@@ -301,7 +301,7 @@ export const uploadCompanyDocument = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     const { docType } = req.body;
-    const validTypes = ["company_registration", "gst_certificate", "address_proof", "identity_proof", "security_agency_license"];
+    const validTypes = ["company_registration", "gst_certificate", "address_proof", "identity_proof"];
     if (!docType || !validTypes.includes(docType)) {
       return res.status(400).json({ message: "Invalid document type" });
     }

@@ -25,7 +25,6 @@ import {
   FileText,
   Upload,
   ExternalLink,
-  ShieldAlert,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -474,16 +473,6 @@ const CompanyProfilePage = () => {
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">Optional — helps admin approve your account faster. Required if you post Security jobs.</p>
 
-                {/* Security jobs notice */}
-                {profile?.interestedCategories?.includes("security") && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-start gap-2">
-                    <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-800">
-                      You post Security jobs. Please upload your <strong>Security Agency License (PSARA)</strong> so admin can verify your eligibility.
-                    </p>
-                  </div>
-                )}
-
                 {/* Existing documents */}
                 {profile?.documents?.length > 0 ? (
                   <div className="space-y-2 mb-4">
@@ -519,7 +508,6 @@ const CompanyProfilePage = () => {
                     <option value="gst_certificate">GST Certificate</option>
                     <option value="address_proof">Address Proof</option>
                     <option value="identity_proof">Owner / Director ID Proof</option>
-                    <option value="security_agency_license">Security Agency License (PSARA)</option>
                   </select>
                   <input
                     type="file"
