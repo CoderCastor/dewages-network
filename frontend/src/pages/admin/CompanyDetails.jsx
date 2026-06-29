@@ -856,9 +856,9 @@ export default function CompanyDetailPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-600">
-                      Legal Verified
+                      Admin Approved
                     </span>
-                    {company.verificationStatus?.legal ? (
+                    {company.isVerified ? (
                       <CheckCircle className="w-5 h-5 text-green-500" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-500" />

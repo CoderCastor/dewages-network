@@ -667,6 +667,7 @@ const WorkerSignupForm = () => {
       console.log(formData);
       const res = await axios.post(`${BACKEND_URL}/worker/signup`, {
         formData,
+        emailVerified,
         token: localStorage.getItem("token"),
       });
       console.log(res);

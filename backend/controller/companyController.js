@@ -189,9 +189,10 @@ const signupCompany = async (req, res) => {
       }
       
       // Update existing inactive company
+      const emailVerified = body.emailVerified === true;
       const updatedCompany = await CompanyProfile.updateOne(
         { walletAddress: parsedBody.data.walletAddress },
-        { $set: {...parsedBody.data,isActive : true} }
+        { $set: { ...parsedBody.data, isActive: true, "verificationStatus.email": emailVerified } }
       );
 
       console.log(parsedBody.data)
@@ -205,7 +206,11 @@ const signupCompany = async (req, res) => {
     }
 
     // Create new company
-    const createdCompany = await CompanyProfile.create(parsedBody.data);
+    const emailVerified = body.emailVerified === true;
+    const createdCompany = await CompanyProfile.create({
+      ...parsedBody.data,
+      verificationStatus: { email: emailVerified },
+    });
     console.log("Company profile created successfully:", createdCompany._id);
 
     return res.status(201).json({
