@@ -179,6 +179,35 @@ const JobDetailsModalWorker = ({
 
   const handleRatingSubmit = async (rating, review) => {
     try {
+      if (wallet.connected && job.companyWallet) {
+        toast.loading("Submitting rating to blockchain...", { id: "rating" });
+        const provider = new AnchorProvider(connection, wallet, {
+          preflightCommitment: "processed",
+        });
+        const program = new Program(idl, PROGRAM_ID, provider);
+        
+        const ratingKeypair = Keypair.generate();
+        const [targetProfilePDA] = PublicKey.findProgramAddressSync(
+          [Buffer.from("user_profile"), new PublicKey(job.companyWallet).toBuffer()],
+          new PublicKey(PROGRAM_ID)
+        );
+        
+        await program.methods
+          .rateUser(rating, review || "")
+          .accounts({
+            userRating: ratingKeypair.publicKey,
+            job: new PublicKey(job.jobPDA),
+            targetProfile: targetProfilePDA,
+            targetUser: new PublicKey(job.companyWallet),
+            rater: wallet.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([ratingKeypair])
+          .rpc();
+          
+        toast.success("Rating recorded on blockchain!", { id: "rating" });
+      }
+
       const token = localStorage.getItem("token");
 
       const response = await axios.post(
@@ -196,14 +225,13 @@ const JobDetailsModalWorker = ({
       );
 
       if (response.data.success) {
-        toast.success("Rating submitted successfully!");
-        // Now verify the OTP
+        toast.success("Rating saved locally!");
         const otpCode = otpInput.end.trim();
         await verifyOTP("end", otpCode);
       }
     } catch (error) {
       console.error("Error submitting rating:", error);
-      toast.error(error.response?.data?.message || "Failed to submit rating");
+      toast.error(error.message || "Failed to submit rating", { id: "rating" });
     }
   };
 
@@ -326,14 +354,8 @@ const JobDetailsModalWorker = ({
       const proofAccountAddress = proofOfWorkKeypair.publicKey.toString();
 
       const jobPDA = new PublicKey(proofData.jobPDA);
-      // IMPORTANT: `worker` must be the connected wallet (Signer) — NOT proofData.workerWallet
-      // The smart contract declares `worker: Signer<'info>`, so Solana requires the transaction
-      // signer and the `worker` account to be the SAME key. Using a stored string causes
-      // "Missing signature for public key" error.
       const workerPublicKey = wallet.publicKey;
 
-      // Keep proof_data compact (<= 200 chars) to fit the on-chain 350-byte account.
-      // Full photo URL & GPS are already saved in MongoDB — we store only a short reference here.
       const photoKey = photoUrl ? photoUrl.split('/').pop()?.slice(0, 50) || 'photo' : 'no-photo';
       const proofDataBundle = JSON.stringify({
         otp,
@@ -367,16 +389,10 @@ const JobDetailsModalWorker = ({
 
       const versionedTx = new VersionedTransaction(messageV0);
 
-      // STEP 1: Let Phantom Mobile sign the CLEAN transaction first.
-      // Phantom Mobile silently fails to show the prompt if it receives a transaction
-      // that already has partial signatures. So it MUST be clean here.
       const walletSignedTx = await wallet.signTransaction(versionedTx);
 
-      // STEP 2: Add our local proof account signature AFTER Phantom returns it.
-      // VersionedTransaction.sign() appends the signature without stripping Phantom's.
       walletSignedTx.sign([proofOfWorkKeypair]);
 
-      // STEP 3: Broadcast the fully signed transaction
       const txSignature = await connection.sendRawTransaction(walletSignedTx.serialize());
 
       toast.loading("Confirming transaction...", { id: loadingToast });
@@ -545,7 +561,6 @@ const JobDetailsModalWorker = ({
         <button
           onClick={() => {
             if (isStart) {
-              // Before-work photo first, then OTP
               setShowBeforeProofPopup(true);
             } else {
               setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
@@ -588,7 +603,6 @@ const JobDetailsModalWorker = ({
           className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -611,9 +625,7 @@ const JobDetailsModalWorker = ({
             </div>
           </div>
 
-          {/* Content */}
           <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-            {/* Title and Category */}
             <div className="mb-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-3">
                 {job.title}
@@ -633,9 +645,7 @@ const JobDetailsModalWorker = ({
               </p>
             </div>
 
-            {/* Key Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* Payment */}
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-3 bg-green-100 rounded-lg">
@@ -657,7 +667,6 @@ const JobDetailsModalWorker = ({
                 </div>
               </div>
 
-              {/* Duration */}
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-3 bg-blue-100 rounded-lg">
@@ -678,7 +687,6 @@ const JobDetailsModalWorker = ({
               </div>
             </div>
 
-            {/* Location */}
             {job.location && (
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
                 <div className="flex items-start space-x-3">
@@ -701,7 +709,6 @@ const JobDetailsModalWorker = ({
               </div>
             )}
 
-            {/* Requirements */}
             {job.requirements && (
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
                 <div className="flex items-start space-x-3">
@@ -720,21 +727,83 @@ const JobDetailsModalWorker = ({
               </div>
             )}
 
-            {/* OTP Section for In-Progress Jobs */}
             {job.status === "in_progress" && (
               <div className="mb-6 space-y-3">
                 <h4 className="text-lg font-bold text-gray-900 mb-3">
                   Job Progress
                 </h4>
 
-                {/* Start OTP */}
                 {renderOTPSection("start")}
 
-                {/* End OTP - Only show if start OTP is used */}
-                {job.startJobOTP?.isUsed && renderOTPSection("end")}
+                {job.startJobOTP?.isUsed && (
+                  showOTPInput.end ? (
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <p className="text-sm font-medium text-gray-700">
+                        {job.category === "delivery" ? "Scan QR or Enter OTP from Employer" : "Enter End OTP from Employer"}
+                      </p>
+                      
+                      {job.category === "delivery" && (
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            id="qr-upload"
+                            onChange={handleQRScan}
+                          />
+                          <label
+                            htmlFor="qr-upload"
+                            className="flex items-center justify-center space-x-2 w-full py-3 bg-blue-50 text-blue-700 font-semibold rounded-xl border-2 border-blue-200 border-dashed cursor-pointer hover:bg-blue-100 transition-colors"
+                          >
+                            <Camera className="w-5 h-5" />
+                            <span>Scan QR Code</span>
+                          </label>
+                        </div>
+                      )}
 
-                {/* Job Progress Indicator */}
-                {job.startJobOTP?.isUsed && !job.endJobOTP?.isUsed && (
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={otpInput.end}
+                          onChange={(e) =>
+                            setOtpInput((prev) => ({
+                              ...prev,
+                              end: e.target.value.toUpperCase(),
+                            }))
+                          }
+                          placeholder="e.g. A1B2C3"
+                          className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 font-mono text-lg tracking-widest uppercase placeholder:normal-case placeholder:tracking-normal placeholder:text-base"
+                        />
+                        <button
+                          onClick={() => handleOTPSubmit("end")}
+                          disabled={submittingOTP === "end" || otpInput.end.length !== 6}
+                          className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl disabled:opacity-50 transition-colors flex items-center space-x-2 whitespace-nowrap"
+                        >
+                          {submittingOTP === "end" ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <span>Verify & End</span>
+                              <CheckCircle2 className="w-5 h-5" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowOTPInput((prev) => ({ ...prev, end: true }))}
+                      className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg"
+                    >
+                      <Key className="w-5 h-5" />
+                      <span>Enter End Job OTP</span>
+                    </button>
+                  )
+                )}
+
+                {job.startJobOTP?.isUsed && !job.endJobOTP?.isUsed && !showOTPInput.end && (
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
                     <div className="flex items-center space-x-2">
                       <TrendingUp className="w-5 h-5 text-blue-600" />
@@ -747,7 +816,6 @@ const JobDetailsModalWorker = ({
               </div>
             )}
 
-            {/* Dispute Period Status */}
             {job.status === "pending_verification" &&
               job.disputePeriod?.isActive && (
                 <div className="mb-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
@@ -796,7 +864,6 @@ const JobDetailsModalWorker = ({
                 </div>
               )}
 
-            {/* Fund Transfer Status */}
             {job.fundTransfer?.isTransferred && (
               <div className="mb-6 bg-green-50 border-2 border-green-400 rounded-lg p-4">
                 <div className="flex items-center space-x-3">
@@ -816,7 +883,6 @@ const JobDetailsModalWorker = ({
               </div>
             )}
 
-            {/* Company Info */}
             {job.companyName && job.companyWallet && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
                 <div className="flex items-center justify-between">
@@ -850,7 +916,6 @@ const JobDetailsModalWorker = ({
               </div>
             )}
 
-            {/* Blockchain Details */}
             {job.jobPDA && (
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
                 <div className="flex items-center space-x-2 mb-3">
@@ -897,7 +962,6 @@ const JobDetailsModalWorker = ({
             )}
           </div>
 
-          {/* Footer with Apply Button */}
           {showApplyButton && (
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">

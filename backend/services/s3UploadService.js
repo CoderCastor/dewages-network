@@ -23,7 +23,12 @@ const BUCKET_URL =
  * @param {string} walletAddress
  */
 export async function uploadProofPhoto(fileBuffer, mimeType, jobId, walletAddress) {
-  const ext = mimeType.split("/")[1] || "jpg";
+  // Mobile cameras sometimes send generic mimetypes (application/octet-stream, image/heic).
+  // Normalize to image/jpeg so browsers can render the stored photo.
+  const normalizedMime = mimeType && mimeType.startsWith("image/") ? mimeType : "image/jpeg";
+  const extRaw = normalizedMime.split("/")[1];
+  // heic/heif are valid S3 extensions but most browsers can't render them — store as jpg.
+  const ext = (extRaw === "heic" || extRaw === "heif") ? "jpg" : (extRaw || "jpg");
   const key = `proof-photos/${jobId}/${walletAddress}-${uuidv4()}.${ext}`;
 
   await s3.send(
@@ -31,7 +36,9 @@ export async function uploadProofPhoto(fileBuffer, mimeType, jobId, walletAddres
       Bucket: BUCKET,
       Key: key,
       Body: fileBuffer,
-      ContentType: mimeType,
+      ContentType: normalizedMime === "image/heic" || normalizedMime === "image/heif"
+        ? "image/jpeg"
+        : normalizedMime,
       // Makes the object publicly readable — requires bucket ACL enabled
       ACL: "public-read",
     })
