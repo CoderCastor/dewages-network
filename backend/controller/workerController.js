@@ -184,6 +184,29 @@ const verifyPAN = async (req, res) => {
     return res.status(400).json({ message: "Invalid PAN format. Expected format: ABCDE1234F" });
   }
 
+  // Age check — must be 18+ (DOB arrives as DD/MM/YYYY)
+  const [dd, mm, yyyy] = date_of_birth.split("/");
+  const dob = new Date(`${yyyy}-${mm}-${dd}`);
+  const today = new Date();
+  const age = today.getFullYear() - dob.getFullYear() -
+    (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+  if (age < 18) {
+    return res.status(400).json({ message: "You must be at least 18 years old to register on this platform." });
+  }
+
+  // PAN duplicate check — reject if same PAN is already verified on another wallet
+  const { CompanyProfile } = await import("../model/companyModel.js");
+  const existingWorkerPan = await WorkerProfile.findOne({
+    "panDetails.panNumber": pan.toUpperCase(),
+    walletAddress: { $ne: walletAddress },
+  });
+  const existingCompanyPan = await CompanyProfile.findOne({
+    "panDetails.panNumber": pan.toUpperCase(),
+  });
+  if (existingWorkerPan || existingCompanyPan) {
+    return res.status(409).json({ message: "This PAN is already registered with another account. Each person may only have one account." });
+  }
+
   // Check required env vars are set
   if (!process.env.SANDBOX_API_KEY || !process.env.SANDBOX_API_SECRET || !process.env.SANDBOX_HOST) {
     console.error("Sandbox API credentials are not configured in .env");

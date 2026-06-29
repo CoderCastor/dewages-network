@@ -118,7 +118,6 @@ workerProfileSchema.pre("save", function (next) {
 
 workerProfileSchema.virtual("isFullyVerified").get(function () {
   return (
-    this.verificationStatus.phone &&
     this.verificationStatus.email &&
     this.verificationStatus.identity
   );

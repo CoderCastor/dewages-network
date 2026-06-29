@@ -279,9 +279,10 @@ const JobDetailsModalWorker = ({
 
       if (response.data.success) {
         if (otpType === "start") {
-          toast.success("Job Started Successfully!", { id: loadingToast });
+          toast.success("Start OTP verified! Now capture your before-work photo.", { id: loadingToast });
           setOtpInput((prev) => ({ ...prev, [otpType]: "" }));
           setShowOTPInput((prev) => ({ ...prev, [otpType]: false }));
+          setShowBeforeProofPopup(true);
         }
 
         if (otpType === "end" && response.data.requiresBlockchainProof) {
@@ -632,11 +633,7 @@ const JobDetailsModalWorker = ({
       <>
         <button
           onClick={() => {
-            if (isStart) {
-              setShowBeforeProofPopup(true);
-            } else {
-              setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
-            }
+            setShowOTPInput((prev) => ({ ...prev, [otpType]: true }));
           }}
           className={`w-full flex items-center justify-center space-x-2 py-3 px-4 ${
             isStart
@@ -890,7 +887,7 @@ const JobDetailsModalWorker = ({
                 {job.startJobOTP?.isUsed && !job.endJobOTP?.isUsed && !showNoOtpDispute && (
                   <button
                     onClick={() => setShowNoOtpDispute(true)}
-                    className="w-full text-sm text-red-600 border border-red-200 rounded-lg py-2 px-3 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 mt-1"
+                    className="w-full font-semibold text-sm text-white bg-red-600 hover:bg-red-700 rounded-xl py-3 px-4 transition-colors flex items-center justify-center gap-2 mt-2 shadow-md"
                   >
                     <AlertCircle className="w-4 h-4" />
                     {t("jobDetail.employerNotGivingOtp")}

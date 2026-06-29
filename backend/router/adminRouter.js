@@ -8,6 +8,7 @@ import { adminLogin, adminGetNonce,
   fetchCompanies,
   fetchCompanyByWallet,
   verifyCompany,
+  runValidation,
 } from "../controller/adminController.js";
 import { adminGetDisputes, adminResolveDispute, getDisputeHistory } from "../controller/disputeController.js";
 
@@ -21,6 +22,9 @@ adminRouter.post("/login", adminLogin);
 adminRouter.get("/workers", fetchWorkers);
 adminRouter.get("/worker/:walletAddress", fetchWorkerByWallet);
 adminRouter.post("/verify-worker/:walletAddress", verifyWorker);
+
+// ============ VALIDATION ============
+adminRouter.get("/run-validation/:walletAddress", runValidation);
 
 // ============ COMPANY ROUTES ============
 adminRouter.get("/companies", fetchCompanies);

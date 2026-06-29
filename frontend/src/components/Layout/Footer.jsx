@@ -1,5 +1,6 @@
 import React from 'react';
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
+import { Link } from 'react-router';
 import Logo from '../common/Logo';
 import { useTranslation } from 'react-i18next';
 
@@ -19,11 +20,11 @@ const Footer = () => {
       { label: 'Contact', href: '#' },
     ],
     'Support': [
+      { label: 'Learn & Resources', href: '/learn', internal: true },
       { label: 'Help Center', href: '#' },
       { label: 'Safety', href: '#' },
       { label: 'Community Guidelines', href: '#' },
       { label: 'Terms of Service', href: '#' },
-      { label: 'Privacy Policy', href: '#' },
     ],
   };
 
@@ -69,12 +70,21 @@ const Footer = () => {
               <ul className="space-y-3">
                 {links.map((link) => (
                   <li key={link.label}>
-                    <a
-                      href={link.href}
-                      className="text-gray-400 hover:text-white transition-colors text-sm"
-                    >
-                      {link.label}
-                    </a>
+                    {link.internal ? (
+                      <Link
+                        to={link.href}
+                        className="text-gray-400 hover:text-white transition-colors text-sm"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        className="text-gray-400 hover:text-white transition-colors text-sm"
+                      >
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

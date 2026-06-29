@@ -298,14 +298,14 @@ const WorkerProfilePage = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-lg font-semibold text-sm transition-all ${
+                className={`flex-1 min-w-0 flex items-center justify-center space-x-2 py-3 rounded-lg font-semibold text-sm transition-all ${
                   activeTab === tab.id
                     ? "bg-white text-blue-600 shadow-sm"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{tab.label}</span>
               </button>
             );
           })}
