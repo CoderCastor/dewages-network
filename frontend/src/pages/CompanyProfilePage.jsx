@@ -49,6 +49,7 @@ const CompanyProfilePage = () => {
   // On-chain data
   const [onChainData, setOnChainData] = useState(null);
   const [loadingOnChain, setLoadingOnChain] = useState(false);
+  const [onChainError, setOnChainError] = useState(null);
 
   useEffect(() => {
     fetchProfile();
@@ -130,10 +131,9 @@ const CompanyProfilePage = () => {
     }
     try {
       setLoadingOnChain(true);
+      setOnChainError(null);
       const connection = new Connection(RPC_URL, "confirmed");
-
-      // Read-only fetch — no signing needed, use dummy wallet so this works
-      // even when Phantom is disconnected (user is logged in via JWT only)
+      const programIdKey = new PublicKey(PROGRAM_ID);
       const readWallet = {
         publicKey: publicKey || PublicKey.default,
         signTransaction: async (tx) => tx,
@@ -143,11 +143,9 @@ const CompanyProfilePage = () => {
         commitment: "confirmed",
         preflightCommitment: "confirmed",
       });
-      // Anchor 0.29: new Program(idl, programId, provider)
-      const program = new Program(idl, PROGRAM_ID, provider);
+      const program = new Program(idl, programIdKey, provider);
       const pda = new PublicKey(profile.PDAAddress);
       const data = await program.account.userProfile.fetch(pda);
-      // Flatten BN / PublicKey values for display
       const display = {};
       for (const [k, v] of Object.entries(data)) {
         if (v && typeof v.toString === "function" && typeof v !== "string") {
@@ -161,6 +159,7 @@ const CompanyProfilePage = () => {
     } catch (error) {
       console.error("On-chain fetch error:", error);
       setOnChainData(null);
+      setOnChainError(error.message || "Unknown error");
       toast.error("Failed to load on-chain data: " + (error.message || "Unknown error"));
     } finally {
       setLoadingOnChain(false);
@@ -545,6 +544,17 @@ const CompanyProfilePage = () => {
                         <><Database className="w-4 h-4" /><span>Load On-Chain Data</span></>
                       )}
                     </button>
+                    {onChainError && (
+                      <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4 text-left">
+                        <div className="flex items-start space-x-2">
+                          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-semibold text-red-800">Fetch failed</p>
+                            <p className="text-xs text-red-700 mt-1 font-mono break-all">{onChainError}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
