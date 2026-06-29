@@ -7,6 +7,9 @@ import {
 import { sendOTP, verifyOTP } from "../controller/otpController.js";
 import { WorkerProfile } from "../model/workerModel.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import multer from "multer";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const workerRouter = Router();
 
@@ -46,6 +49,23 @@ workerRouter.patch("/profile/update", authMiddleware, async (req, res) => {
     return res.status(200).json({ success: true, message: "Profile updated", worker: updated });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Failed to update profile", error: error.message });
+  }
+});
+
+// POST /api/worker/profile/avatar — upload profile photo
+workerRouter.post("/profile/avatar", authMiddleware, upload.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+    const { uploadWorkerAvatar } = await import("../services/s3UploadService.js");
+    const url = await uploadWorkerAvatar(req.file.buffer, req.file.mimetype, req.user.walletAddress);
+    await WorkerProfile.findOneAndUpdate(
+      { walletAddress: req.user.walletAddress },
+      { $set: { avatar: url } }
+    );
+    return res.status(200).json({ success: true, url });
+  } catch (err) {
+    console.error("Avatar upload error:", err);
+    return res.status(500).json({ success: false, message: "Failed to upload avatar", error: err.message });
   }
 });
 
