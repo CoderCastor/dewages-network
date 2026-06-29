@@ -5,9 +5,9 @@ dotenv.config();
 // ── Nodemailer transporter ────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465, false for 587
-  family: 4,     // force IPv4 — prevents ENETUNREACH on IPv6-only DNS results
+  port: parseInt(process.env.SMTP_PORT) || 465,
+  secure: true,  // port 465 uses SSL directly (587 STARTTLS is blocked on Render)
+  family: 4,     // force IPv4
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
