@@ -27,6 +27,7 @@ import {
   Instagram,
   Lock,
   FileDown,
+  Camera,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -53,6 +54,7 @@ const WorkerProfilePage = () => {
   const [formData, setFormData] = useState({});
 
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // On-chain data
   const [onChainData, setOnChainData] = useState(null);
@@ -103,6 +105,29 @@ const WorkerProfilePage = () => {
       toast.error("Failed to load profile");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setAvatarUploading(true);
+      const token = localStorage.getItem("token");
+      const fd = new FormData();
+      fd.append("avatar", file);
+      const res = await axios.post(`${BACKEND_URL}/worker/profile/avatar`, fd, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.success) {
+        setProfile((prev) => ({ ...prev, avatar: res.data.url }));
+        toast.success("Profile photo updated!");
+      }
+    } catch {
+      toast.error("Failed to upload photo");
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -258,14 +283,34 @@ const WorkerProfilePage = () => {
         >
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-6">
-              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-4xl font-bold text-white">{getInitial(profile?.name)}</span>
-              </div>
+              <label className="relative cursor-pointer group">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                  disabled={avatarUploading}
+                />
+                <div className="w-20 h-20 rounded-2xl shadow-lg overflow-hidden bg-white bg-opacity-20 flex items-center justify-center">
+                  {profile?.avatar ? (
+                    <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-4xl font-bold text-white">{getInitial(profile?.name)}</span>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                  {avatarUploading ? (
+                    <Loader2 className="w-6 h-6 text-white animate-spin opacity-0 group-hover:opacity-100" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </div>
+              </label>
               <div>
                 <h2 className="text-3xl font-bold">{profile?.name || "Unnamed Worker"}</h2>
                 <p className="text-blue-100 text-sm mt-1">{profile?.email || "No email"}</p>
                 <div className="flex items-center space-x-3 mt-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20 capitalize`}>
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white text-indigo-700 capitalize">
                     {profile?.experienceLevel || "Beginner"}
                   </span>
                   <div className="flex items-center space-x-1">
