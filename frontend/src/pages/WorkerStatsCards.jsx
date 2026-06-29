@@ -7,11 +7,14 @@ import {
   DollarSign,
   TrendingUp,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const WorkerStatsCards = ({ stats }) => {
+  const { t } = useTranslation();
+
   const statCards = [
     {
-      label: "Available Jobs",
+      label: t("worker.availableJobs"),
       value: stats.availableJobs || 0,
       icon: Briefcase,
       color: "blue",
@@ -19,7 +22,7 @@ const WorkerStatsCards = ({ stats }) => {
       textColor: "text-blue-600",
     },
     {
-      label: "Applied",
+      label: t("worker.applied"),
       value: stats.appliedJobs || 0,
       icon: Clock,
       color: "orange",
@@ -27,7 +30,7 @@ const WorkerStatsCards = ({ stats }) => {
       textColor: "text-orange-600",
     },
     {
-      label: "Active Jobs",
+      label: t("worker.activeJobs"),
       value: stats.activeJobs || 0,
       icon: TrendingUp,
       color: "purple",
@@ -35,7 +38,7 @@ const WorkerStatsCards = ({ stats }) => {
       textColor: "text-purple-600",
     },
     {
-      label: "Completed",
+      label: t("worker.completed"),
       value: stats.completedJobs || 0,
       icon: CheckCircle,
       color: "green",
@@ -43,7 +46,7 @@ const WorkerStatsCards = ({ stats }) => {
       textColor: "text-green-600",
     },
     {
-      label: "Total Earnings",
+      label: t("worker.totalEarnings"),
       value: `${((stats.totalEarnings || 0) / 1_000_000_000).toFixed(2)} SOL`,
       icon: DollarSign,
       color: "emerald",
