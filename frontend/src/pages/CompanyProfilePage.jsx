@@ -124,10 +124,6 @@ const CompanyProfilePage = () => {
   };
 
   const fetchOnChainData = async () => {
-    if (!publicKey) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
     if (!profile?.PDAAddress) {
       toast.error("No on-chain profile PDA found. Register on-chain first.");
       return;
@@ -135,7 +131,15 @@ const CompanyProfilePage = () => {
     try {
       setLoadingOnChain(true);
       const connection = new Connection(RPC_URL, "confirmed");
-      const provider = new AnchorProvider(connection, walletAdapter, {
+
+      // Read-only fetch — no signing needed, use dummy wallet so this works
+      // even when Phantom is disconnected (user is logged in via JWT only)
+      const readWallet = {
+        publicKey: publicKey || PublicKey.default,
+        signTransaction: async (tx) => tx,
+        signAllTransactions: async (txs) => txs,
+      };
+      const provider = new AnchorProvider(connection, readWallet, {
         commitment: "confirmed",
         preflightCommitment: "confirmed",
       });
