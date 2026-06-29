@@ -22,12 +22,16 @@ const BUCKET = process.env.S3_BUCKET_NAME;
  * Returns the public URL of the uploaded file.
  */
 export async function uploadCompanyDocument(fileBuffer, mimeType, walletAddress, originalName) {
+  const bucket = process.env.S3_BUCKET_NAME;
+  const region = process.env.AWS_REGION || "ap-south-1";
+  const baseUrl = process.env.S3_BUCKET_URL || `https://${bucket}.s3.${region}.amazonaws.com`;
+
   const ext = originalName?.split(".").pop()?.toLowerCase() || "pdf";
   const key = `company-documents/${walletAddress}/${uuidv4()}.${ext}`;
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: BUCKET,
+      Bucket: bucket,
       Key: key,
       Body: fileBuffer,
       ContentType: mimeType || "application/octet-stream",
@@ -35,7 +39,7 @@ export async function uploadCompanyDocument(fileBuffer, mimeType, walletAddress,
     })
   );
 
-  return `${BUCKET_URL}/${key}`;
+  return `${baseUrl}/${key}`;
 }
 
 export async function uploadProofPhoto(fileBuffer, mimeType, jobId, walletAddress) {
