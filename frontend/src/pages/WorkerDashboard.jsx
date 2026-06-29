@@ -274,7 +274,7 @@ const WorkerDashboard = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
           {/* Tabs */}
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-2 px-4 overflow-x-auto" aria-label="Tabs">
+            <nav className="flex space-x-2 px-4 overflow-x-auto scrollbar-hide" aria-label="Tabs">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;

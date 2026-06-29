@@ -16,6 +16,7 @@ import WorkerDashboard from "./pages/WorkerDashboard";
 import CompanyDetailPage from "./pages/admin/CompanyDetails";
 import WorkerProfilePage from "./pages/WorkerProfilePage";
 import CompanyProfilePage from "./pages/CompanyProfilePage";
+import EducatePage from "./pages/EducatePage";
 
 
 export const Router = createBrowserRouter([
@@ -78,6 +79,10 @@ export const Router = createBrowserRouter([
   {
     path: "/company/profile",
     Component: CompanyProfilePage,
+  },
+  {
+    path: "/learn",
+    Component: EducatePage,
   },
 ]);
 

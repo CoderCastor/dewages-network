@@ -1569,7 +1569,7 @@ const CompanyJobPostingPage = () => {
                     </div>
                     <div className="flex items-center space-x-3">
                       <Globe className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600 font-mono text-sm">{selectedWorker.walletAddress}</span>
+                      <span className="text-gray-600 font-mono text-xs break-all">{selectedWorker.walletAddress}</span>
                     </div>
                   </div>
                 </div>

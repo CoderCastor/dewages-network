@@ -1501,9 +1501,9 @@ const WorkerSignupForm = () => {
                     <span className="font-medium">Email:</span>{" "}
                     {formData.email || "Not provided"}
                   </p>
-                  <p>
+                  <p className="break-all">
                     <span className="font-medium">Wallet:</span>{" "}
-                    {formData.walletAddress}
+                    <span className="font-mono text-xs">{formData.walletAddress}</span>
                   </p>
                 </div>
               </div>

@@ -205,7 +205,7 @@
     "orUseCode": "किंवा कोड वापरा:",
     "shareQrOrOtp": "काम पूर्ण करण्यासाठी हा क्यूआर कोड किंवा ओटीपी कामगारांसह शेअर करा",
     "shareOtp": "काम पूर्ण करण्यासाठी हा ओटीपी कामगारांसह सामायिक करा",
-    "endOtpUsed": "✓ End OTP has been used — Job completed",
+    "endOtpUsed": "✓ एंड ओटीपी वापरला गेला — काम पूर्ण",
     "generating": "ओटीपी व्युत्पन्न करत आहे...",
     "generateEndOtp": "एंड जॉब ओटीपी व्युत्पन्न करा",
     "rateWorkerAndGetOtp": "कामगारांना रेट करा आणि ओटीपी संपवा"
@@ -222,8 +222,8 @@
     "raising": "वाढवत आहे..."
   },
   "proof": {
-    "beforeTitle": "📸 Before-Work Evidence",
-    "afterTitle": "✅ Submit Proof of Work",
+    "beforeTitle": "📸 कामापूर्वीचा पुरावा",
+    "afterTitle": "✅ कामाचा पुरावा सादर करा",
     "stepPhoto": "फोटो",
     "stepStartOtp": "ओटीपी सुरू करा",
     "stepEndOtp": "ओटीपी समाप्त करा",
@@ -249,8 +249,8 @@
     "afterPhotoLabel": "फोटो नंतर",
     "uploadedToCloud": "cloud वर अपलोड केले",
     "capturedLocally": "लोकल पकडली",
-    "gpsRecorded": "GPS recorded",
-    "gpsNotAvailable": "GPS not available",
+    "gpsRecorded": "GPS नोंदवला",
+    "gpsNotAvailable": "GPS उपलब्ध नाही",
     "timestampOnChain": "Solana blockchain वर रेकॉर्ड टाइमस्टॅम्प",
     "startJob": "कार्य सुरू करा",
     "submitProof": "पुरावा सबमिट करा"
@@ -279,7 +279,7 @@
     "captureGps": "GPS कॅप्चर करा",
     "paymentTransferSoon": "30 मिनिटांत पेमेंट ट्रान्सफर केले जाईल",
     "paymentReceived": "पेमेंट मिळाले  : ",
-    "solTransferred": "SOL transferred to your wallet",
+    "solTransferred": "SOL तुमच्या वॉलेटमध्ये हस्तांतरित",
     "postedBy": "प्रदात्या द्वारे",
     "viewCompany": "कंपनी पहा",
     "blockchainSecurity": "ब्लॉकचेन सुरक्षा",
