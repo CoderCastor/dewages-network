@@ -24,8 +24,9 @@ const authMiddleware = (req, res, next) => {
     // Attach user info to request object
     req.user = {
       userId: decoded.userId,
-      walletAddress: decoded.walletAddress,
-      userType: decoded.userType, // "worker" or "company"
+      // Worker JWTs are signed with `publicKey`, company JWTs with `walletAddress`
+      walletAddress: decoded.walletAddress || decoded.publicKey,
+      userType: decoded.userType,
     };
 
     next();

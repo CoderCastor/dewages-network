@@ -290,5 +290,86 @@
     "applyNote": "You'll be notified once the company reviews your application",
     "applying": "Applying...",
     "applyNow": "Apply Now"
+  },
+  "educate": {
+    "pageTitle": "Learn & Resources",
+    "back": "Back",
+    "heroTag": "New to blockchain? Start here.",
+    "heroTitle": "Everything you need to get started",
+    "heroSub": "DeWages runs on the Solana blockchain. This page explains what that means, how payments work, and how we keep workers and employers safe.",
+    "officialTitle": "Official Resources",
+    "phantom": {
+      "title": "Install Phantom Wallet",
+      "desc": "The most popular Solana wallet — available as a browser extension and mobile app.",
+      "cta": "Download Phantom"
+    },
+    "solana": {
+      "title": "What is Solana?",
+      "desc": "Learn about the fast, low-cost blockchain network that powers DeWages payments.",
+      "cta": "Visit Solana.com"
+    },
+    "faucet": {
+      "title": "Get Free Devnet SOL",
+      "desc": "Need SOL to test transactions? Use the faucet to get free devnet tokens instantly.",
+      "cta": "Get Devnet SOL"
+    },
+    "docs": {
+      "title": "Solana Documentation",
+      "desc": "Deep-dive into how Solana works — for the technically curious.",
+      "cta": "Read the Docs"
+    },
+    "stepsTitle": "Getting Started — 3 Steps",
+    "step1": {
+      "title": "Install Phantom Wallet",
+      "body": "Go to phantom.app and install the browser extension or mobile app. Create a new wallet and save your recovery phrase somewhere safe — this is the only way to recover your account if you lose your device. Never share your recovery phrase with anyone."
+    },
+    "step2": {
+      "title": "Get some SOL for transaction fees",
+      "body": "You need a tiny amount of SOL (less than ₹1 worth) to pay blockchain transaction fees. For testing, visit solfaucet.com and paste your wallet address to receive free devnet SOL instantly."
+    },
+    "step3": {
+      "title": "Sign up on DeWages",
+      "body": "Connect your Phantom wallet on the DeWages signup page, fill in your details, verify your email with a one-time password, and complete PAN verification. Once our admin team approves your profile, you're ready to work or post jobs."
+    },
+    "warningTitle": "Never share your wallet private key or seed phrase",
+    "warningBody": "DeWages will never ask for your private key or recovery phrase. Anyone who does is trying to steal your funds. Your wallet is yours alone — not even we can access it.",
+    "faqTitle": "Frequently Asked Questions",
+    "cat1": "Platform",
+    "cat2": "Payments & Escrow",
+    "cat3": "Safety & Disputes",
+    "cat4": "Blockchain Basics",
+    "q1_1": "What is DeWages Network?",
+    "a1_1": "DeWages is a blockchain-powered platform connecting daily wage workers with verified employers across India. When a job is accepted, payment is locked in a smart contract escrow — so workers are guaranteed to get paid when they complete their work, and employers are protected by photo + GPS proof of work.",
+    "q1_2": "Do I need technical knowledge to use this platform?",
+    "a1_2": "No. You only need a smartphone and a Phantom wallet. Installing Phantom takes about 2 minutes. Once your wallet is set up, signing up on DeWages is as simple as filling a form.",
+    "q1_3": "Why do I need a PAN card to register?",
+    "a1_3": "PAN is India's government-issued identity document linked to your financial records. We use it to verify that each person has only one account and to ensure financial accountability.",
+    "q1_4": "Is my personal data safe?",
+    "a1_4": "Your PAN details are used only for identity verification during signup and are stored securely. Your name, phone, and email are visible only to employers for jobs you apply to. We never share your data with third parties.",
+    "q2_1": "What is escrow and how does it protect me?",
+    "a2_1": "Escrow is a digital safe. When a company accepts your job application, they deposit your wage into a smart contract. The money sits locked there until you complete the work and submit proof. When the job is done, the contract releases the payment directly to your wallet automatically.",
+    "q2_2": "What if the employer refuses to pay after I finish the work?",
+    "a2_2": "This cannot happen. The payment is already locked in the smart contract before work begins. If the employer refuses to give you the End OTP, you can raise a dispute — your before-work photo and GPS location serve as evidence, and an admin reviews it within 24 hours.",
+    "q2_3": "How fast are payments?",
+    "a2_3": "Solana transactions settle in under a second. Once the End OTP is verified and the smart contract executes, your wages appear in your wallet almost instantly — no waiting 2–7 days like traditional bank transfers.",
+    "q2_4": "What are the fees?",
+    "a2_4": "Solana transaction fees are typically less than ₹0.01 (a fraction of a paisa). There is a small platform fee on each completed job, shown transparently when you apply.",
+    "q3_1": "What is the Start OTP and End OTP?",
+    "a3_1": "When you arrive at a job site, the employer generates a Start OTP and shares it with you. You enter it in the app, which triggers a before-work photo and GPS capture. When the job is done, the employer generates an End OTP to confirm completion, which releases your payment.",
+    "q3_2": "What happens if there is a dispute?",
+    "a3_2": "If the employer refuses the End OTP or you believe the work was unfairly rejected, you can raise a dispute. Describe the situation, attach your before-work photo as evidence, and submit. An admin reviews the evidence from both sides within 24 hours.",
+    "q3_3": "What if an employer behaves badly or is fraudulent?",
+    "a3_3": "Employers are KYC-verified before they can post jobs. If an employer is found to be acting in bad faith, their account is deactivated and their on-chain history remains as a permanent record.",
+    "q3_4": "Can I create multiple accounts?",
+    "a3_4": "No. Each PAN card can only be linked to one account. Our system checks for duplicate PAN numbers at registration, and the admin review team cross-references before approving your profile.",
+    "q4_1": "What is a blockchain wallet?",
+    "a4_1": "A blockchain wallet is like a digital bank account that only you control — there is no bank in the middle. Your wallet has a public address (like an account number) and a private key (like a PIN you never share). Phantom wallet manages all of this for you securely.",
+    "q4_2": "What is SOL and why do I need it?",
+    "a4_2": "SOL is the currency of the Solana network, used to pay tiny transaction fees. You need a small amount of SOL in your wallet to sign transactions. Your actual job wages are paid in SOL based on the agreed amount.",
+    "q4_3": "What is a smart contract?",
+    "a4_3": "A smart contract is a program that lives on the blockchain and runs automatically when certain conditions are met. DeWages uses smart contracts to hold job payments in escrow and release them automatically when work is verified.",
+    "q4_4": "What does 'on-chain' mean?",
+    "a4_4": "'On-chain' means the data is stored directly on the Solana blockchain — permanently and publicly. Your work history, ratings, and payment records are on-chain, meaning they cannot be deleted, altered, or hidden.",
+    "contactNote": "Still have questions? Reach out to us at"
   }
 }
