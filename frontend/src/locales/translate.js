@@ -24,6 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LANGS = [
   { code: "hi", name: "Hindi",   langpair: "en|hi" },
   { code: "mr", name: "Marathi", langpair: "en|mr" },
+  { code: "fr", name: "French",  langpair: "en|fr" },
 ];
 
 // Keep these keys in English — technical terms that should not be translated
