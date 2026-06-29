@@ -1,18 +1,6 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-dotenv.config();
+import { Resend } from "resend";
 
-// ── Nodemailer transporter ────────────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT) || 465,
-  secure: true,  // port 465 uses SSL directly (587 STARTTLS is blocked on Render)
-  family: 4,     // force IPv4
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Send a 6-digit OTP to the given email address.
@@ -20,8 +8,8 @@ const transporter = nodemailer.createTransport({
  * @param {string} otp   - 6-digit OTP string
  */
 export const sendOTPEmail = async (email, otp) => {
-  const mailOptions = {
-    from: `"DeWages Network" <${process.env.SMTP_USER}>`,
+  const { error } = await resend.emails.send({
+    from: "DeWages Network <onboarding@resend.dev>",
     to: email,
     subject: "Your Email Verification OTP — DeWages Network",
     html: `
@@ -61,7 +49,9 @@ export const sendOTPEmail = async (email, otp) => {
         </p>
       </div>
     `,
-  };
+  });
 
-  await transporter.sendMail(mailOptions);
+  if (error) {
+    throw new Error(`Resend error: ${error.message}`);
+  }
 };
