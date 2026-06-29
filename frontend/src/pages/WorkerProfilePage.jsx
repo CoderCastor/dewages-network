@@ -26,6 +26,7 @@ import {
   Facebook,
   Instagram,
   Lock,
+  FileDown,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -37,6 +38,7 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 import { useNavigate } from "react-router";
+import { generateWorkerPDF } from "@/utils/generateWorkerPDF";
 
 const WorkerProfilePage = () => {
   const { publicKey, wallet } = useWallet();
@@ -49,6 +51,8 @@ const WorkerProfilePage = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({});
+
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   // On-chain data
   const [onChainData, setOnChainData] = useState(null);
@@ -99,6 +103,24 @@ const WorkerProfilePage = () => {
       toast.error("Failed to load profile");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setPdfLoading(true);
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${BACKEND_URL}/job/worker/completed`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const jobs = res.data?.jobs || [];
+      await generateWorkerPDF(profile, jobs);
+      toast.success("Certificate downloaded!");
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      toast.error("Failed to generate certificate");
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -211,7 +233,18 @@ const WorkerProfilePage = () => {
               <span>Back to Dashboard</span>
             </button>
             <h1 className="text-xl font-bold text-gray-900">My Profile</h1>
-            <div className="w-24" />
+            <button
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading || !profile}
+              className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+            >
+              {pdfLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              <span>{pdfLoading ? "Generating..." : "Download Certificate"}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -242,6 +275,18 @@ const WorkerProfilePage = () => {
                 </div>
               </div>
             </div>
+            <button
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading || !profile}
+              className="flex items-center space-x-2 bg-white bg-opacity-20 hover:bg-opacity-30 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors border border-white border-opacity-30"
+            >
+              {pdfLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">{pdfLoading ? "Generating..." : "Download Certificate"}</span>
+            </button>
           </div>
 
           {/* Stats row */}
