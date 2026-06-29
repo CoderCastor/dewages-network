@@ -830,16 +830,6 @@ export default function WorkerDetailPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-600">
-                      Phone Verified
-                    </span>
-                    {worker.verificationStatus?.phone ? (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-500" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">
                       Email Verified
                     </span>
                     {worker.verificationStatus?.email ? (

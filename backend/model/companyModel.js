@@ -116,7 +116,6 @@ companyProfileSchema.pre("save", function (next) {
 // Virtual for full verification
 companyProfileSchema.virtual("isFullyVerified").get(function () {
   return (
-    this.verificationStatus.phone &&
     this.verificationStatus.email &&
     this.isVerified
   );
