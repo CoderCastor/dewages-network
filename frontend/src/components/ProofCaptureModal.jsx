@@ -50,6 +50,7 @@ export default function ProofCaptureModal({
   const [gpsError, setGpsError] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [otp, setOtp] = useState(otpValue || "");
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function ProofCaptureModal({
     setGpsCoordinates(null);
     setGpsError(null);
     setOtp(otpValue || "");
+    setSubmitting(false);
   }, [isOpen]);
 
   const fetchGPS = () => {
@@ -159,6 +161,8 @@ export default function ProofCaptureModal({
   };
 
   const handleFinish = () => {
+    if (submitting) return;
+    setSubmitting(true);
     onComplete({ photoUrl, gpsCoordinates, otp });
   };
 
@@ -378,10 +382,12 @@ export default function ProofCaptureModal({
                   </button>
                   <button
                     onClick={handleFinish}
-                    disabled={otp.length !== 6}
+                    disabled={otp.length !== 6 || submitting}
                     className={`flex-1 py-2.5 ${btnColor} text-white rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2`}
                   >
-                    {isBefore ? (
+                    {submitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.loading")}</>
+                    ) : isBefore ? (
                       <><PlayCircle className="w-4 h-4" /> {t("proof.startJob")}</>
                     ) : (
                       <><ShieldCheck className="w-4 h-4" /> {t("proof.submitProof")}</>
