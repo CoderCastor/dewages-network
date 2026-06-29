@@ -290,5 +290,86 @@
     "applyNote": "Vous serez averti une fois que l'entreprise aura examiné votre demande",
     "applying": "Mise en oeuvre…",
     "applyNow": "Appliquer maintenant"
+  },
+  "educate": {
+    "pageTitle": "Apprendre et Ressources",
+    "back": "Retour",
+    "heroTag": "Nouveau dans la blockchain ? Commencez ici.",
+    "heroTitle": "Tout ce dont vous avez besoin pour commencer",
+    "heroSub": "DeWages fonctionne sur la blockchain Solana. Cette page explique ce que cela signifie, comment les paiements fonctionnent et comment nous protégeons les travailleurs et les employeurs.",
+    "officialTitle": "Ressources officielles",
+    "phantom": {
+      "title": "Installer Phantom Wallet",
+      "desc": "Le portefeuille Solana le plus populaire — disponible comme extension de navigateur et application mobile.",
+      "cta": "Télécharger Phantom"
+    },
+    "solana": {
+      "title": "Qu'est-ce que Solana ?",
+      "desc": "Découvrez le réseau blockchain rapide et peu coûteux qui alimente les paiements DeWages.",
+      "cta": "Visiter Solana.com"
+    },
+    "faucet": {
+      "title": "Obtenir du SOL Devnet gratuit",
+      "desc": "Besoin de SOL pour tester des transactions ? Utilisez le robinet pour obtenir des jetons devnet gratuits instantanément.",
+      "cta": "Obtenir du SOL Devnet"
+    },
+    "docs": {
+      "title": "Documentation Solana",
+      "desc": "Plongez dans le fonctionnement de Solana — pour les curieux techniques.",
+      "cta": "Lire la documentation"
+    },
+    "stepsTitle": "Commencer — 3 étapes",
+    "step1": {
+      "title": "Installer Phantom Wallet",
+      "body": "Allez sur phantom.app et installez l'extension de navigateur ou l'application mobile. Créez un nouveau portefeuille et sauvegardez votre phrase de récupération en lieu sûr. Ne la partagez jamais avec qui que ce soit."
+    },
+    "step2": {
+      "title": "Obtenir du SOL pour les frais de transaction",
+      "body": "Vous avez besoin d'une petite quantité de SOL (moins de ₹1) pour payer les frais de transaction blockchain. Pour les tests, visitez solfaucet.com et collez votre adresse de portefeuille pour recevoir du SOL devnet gratuit instantanément."
+    },
+    "step3": {
+      "title": "S'inscrire sur DeWages",
+      "body": "Connectez votre portefeuille Phantom sur la page d'inscription DeWages, remplissez vos informations, vérifiez votre email avec un mot de passe à usage unique, et complétez la vérification PAN. Une fois approuvé par notre équipe, vous êtes prêt."
+    },
+    "warningTitle": "Ne partagez jamais votre clé privée ou phrase de récupération",
+    "warningBody": "DeWages ne vous demandera jamais votre clé privée ou phrase de récupération. Quiconque le fait essaie de voler vos fonds. Votre portefeuille n'appartient qu'à vous.",
+    "faqTitle": "Questions fréquemment posées",
+    "cat1": "Plateforme",
+    "cat2": "Paiements et Entiercement",
+    "cat3": "Sécurité et Litiges",
+    "cat4": "Bases de la Blockchain",
+    "q1_1": "Qu'est-ce que DeWages Network ?",
+    "a1_1": "DeWages est une plateforme alimentée par la blockchain qui connecte les travailleurs journaliers avec des employeurs vérifiés. Lorsqu'un emploi est accepté, le paiement est bloqué dans un contrat intelligent — les travailleurs sont garantis d'être payés à la fin du travail.",
+    "q1_2": "Ai-je besoin de connaissances techniques ?",
+    "a1_2": "Non. Vous avez seulement besoin d'un smartphone et d'un portefeuille Phantom. L'installation de Phantom prend environ 2 minutes. Ensuite, s'inscrire sur DeWages est aussi simple que remplir un formulaire.",
+    "q1_3": "Pourquoi ai-je besoin d'une carte PAN ?",
+    "a1_3": "Le PAN est le document d'identité gouvernemental indien. Nous l'utilisons pour vérifier que chaque personne ne possède qu'un seul compte et pour assurer la responsabilité financière.",
+    "q1_4": "Mes données personnelles sont-elles sécurisées ?",
+    "a1_4": "Vos informations PAN ne sont utilisées que pour la vérification d'identité lors de l'inscription. Votre nom, téléphone et email ne sont visibles que par les employeurs pour les emplois auxquels vous postulez.",
+    "q2_1": "Qu'est-ce que l'entiercement et comment me protège-t-il ?",
+    "a2_1": "L'entiercement est un coffre-fort numérique. Quand une entreprise accepte votre candidature, elle dépose votre salaire dans un contrat intelligent. L'argent reste bloqué jusqu'à ce que vous terminiez le travail. Le contrat libère ensuite le paiement automatiquement dans votre portefeuille.",
+    "q2_2": "Que se passe-t-il si l'employeur refuse de payer ?",
+    "a2_2": "Cela ne peut pas arriver. Le paiement est déjà bloqué dans le contrat intelligent avant le début du travail. Si l'employeur refuse de fournir l'OTP de fin, vous pouvez soumettre un litige — votre photo avant-travail et GPS servent de preuves.",
+    "q2_3": "Quelle est la rapidité des paiements ?",
+    "a2_3": "Les transactions Solana se règlent en moins d'une seconde. Une fois l'OTP de fin vérifié et le contrat exécuté, votre salaire apparaît presque instantanément dans votre portefeuille.",
+    "q2_4": "Quels sont les frais ?",
+    "a2_4": "Les frais de transaction Solana sont généralement inférieurs à ₹0.01. Une petite commission de plateforme est prélevée sur chaque emploi complété, affichée de manière transparente lors de votre candidature.",
+    "q3_1": "Qu'est-ce que l'OTP de début et l'OTP de fin ?",
+    "a3_1": "Lorsque vous arrivez sur le lieu de travail, l'employeur génère un OTP de début. Vous le saisissez dans l'application, déclenchant une photo et une capture GPS. Quand le travail est terminé, l'OTP de fin libère votre paiement.",
+    "q3_2": "Que se passe-t-il en cas de litige ?",
+    "a3_2": "Si l'employeur refuse l'OTP de fin, vous pouvez soumettre un litige. Décrivez la situation, joignez votre photo comme preuve et soumettez. Un administrateur examine les preuves des deux côtés dans les 24 heures.",
+    "q3_3": "Que faire si un employeur se comporte frauduleusement ?",
+    "a3_3": "Les employeurs sont vérifiés KYC avant de pouvoir publier des emplois. En cas de mauvaise foi, leur compte est désactivé et leur historique blockchain reste comme un enregistrement permanent.",
+    "q3_4": "Puis-je créer plusieurs comptes ?",
+    "a3_4": "Non. Chaque carte PAN ne peut être liée qu'à un seul compte. Notre système vérifie les doublons de PAN à l'inscription.",
+    "q4_1": "Qu'est-ce qu'un portefeuille blockchain ?",
+    "a4_1": "Un portefeuille blockchain est comme un compte bancaire numérique que vous seul contrôlez — sans intermédiaire. Phantom gère tout cela de manière sécurisée pour vous.",
+    "q4_2": "Qu'est-ce que SOL et pourquoi en ai-je besoin ?",
+    "a4_2": "SOL est la monnaie du réseau Solana, utilisée pour payer de petits frais de transaction. Votre salaire réel est également payé en SOL selon le montant convenu.",
+    "q4_3": "Qu'est-ce qu'un contrat intelligent ?",
+    "a4_3": "Un contrat intelligent est un programme qui vit sur la blockchain et s'exécute automatiquement lorsque certaines conditions sont remplies. DeWages les utilise pour conserver les paiements en entiercement et les libérer lorsque le travail est vérifié.",
+    "q4_4": "Que signifie 'on-chain' ?",
+    "a4_4": "'On-chain' signifie que les données sont stockées directement sur la blockchain Solana — de manière permanente et publique. Votre historique de travail, vos évaluations et vos paiements ne peuvent être ni supprimés ni modifiés.",
+    "contactNote": "D'autres questions ? Contactez-nous à"
   }
 }

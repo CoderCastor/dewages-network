@@ -312,7 +312,7 @@ const WorkerProfilePage = () => {
             <button
               onClick={handleDownloadPDF}
               disabled={pdfLoading || !profile}
-              className="flex items-center space-x-2 bg-white bg-opacity-20 hover:bg-opacity-30 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors border border-white border-opacity-30"
+              className="flex items-center space-x-2 bg-white text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm"
             >
               {pdfLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
