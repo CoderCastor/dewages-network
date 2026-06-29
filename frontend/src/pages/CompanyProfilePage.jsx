@@ -142,7 +142,7 @@ const CompanyProfilePage = () => {
       // Anchor 0.29: new Program(idl, programId, provider)
       const program = new Program(idl, PROGRAM_ID, provider);
       const pda = new PublicKey(profile.PDAAddress);
-      const data = await program.account.employerProfile.fetch(pda);
+      const data = await program.account.userProfile.fetch(pda);
       // Flatten BN / PublicKey values for display
       const display = {};
       for (const [k, v] of Object.entries(data)) {
