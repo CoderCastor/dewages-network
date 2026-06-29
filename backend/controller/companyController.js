@@ -293,9 +293,46 @@ const updateCompanyProfile = async (req, res) => {
   }
 };
 
-export { 
-  verifyCompanyWallet, 
-  signupCompany, 
+export const uploadCompanyDocument = async (req, res) => {
+  try {
+    const walletAddress = req.user?.walletAddress;
+    if (!walletAddress) return res.status(401).json({ message: "Unauthorized" });
+
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const { docType } = req.body;
+    const validTypes = ["company_registration", "gst_certificate", "address_proof", "identity_proof", "security_agency_license"];
+    if (!docType || !validTypes.includes(docType)) {
+      return res.status(400).json({ message: "Invalid document type" });
+    }
+
+    const { uploadCompanyDocument: uploadToS3 } = await import("../services/s3UploadService.js");
+    const s3Url = await uploadToS3(req.file.buffer, req.file.mimetype, walletAddress, req.file.originalname);
+
+    await CompanyProfile.findOneAndUpdate(
+      { walletAddress },
+      {
+        $push: {
+          documents: {
+            type: docType,
+            s3Url,
+            fileName: req.file.originalname,
+            uploadedAt: new Date(),
+          },
+        },
+      }
+    );
+
+    return res.status(200).json({ success: true, message: "Document uploaded successfully", s3Url });
+  } catch (error) {
+    console.error("Document upload error:", error);
+    return res.status(500).json({ message: "Failed to upload document", error: error.message });
+  }
+};
+
+export {
+  verifyCompanyWallet,
+  signupCompany,
   getCompanyProfile, 
   updateCompanyProfile 
 };

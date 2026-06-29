@@ -22,6 +22,10 @@ import {
   TrendingUp,
   Award,
   User,
+  FileText,
+  Upload,
+  ExternalLink,
+  ShieldAlert,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -50,6 +54,11 @@ const CompanyProfilePage = () => {
   const [onChainData, setOnChainData] = useState(null);
   const [loadingOnChain, setLoadingOnChain] = useState(false);
   const [onChainError, setOnChainError] = useState(null);
+
+  // Document upload
+  const [docFile, setDocFile] = useState(null);
+  const [docType, setDocType] = useState("company_registration");
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -454,6 +463,97 @@ const CompanyProfilePage = () => {
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Verification Documents */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center space-x-2">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  <span>Verification Documents</span>
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">Optional — helps admin approve your account faster. Required if you post Security jobs.</p>
+
+                {/* Security jobs notice */}
+                {profile?.interestedCategories?.includes("security") && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                      You post Security jobs. Please upload your <strong>Security Agency License (PSARA)</strong> so admin can verify your eligibility.
+                    </p>
+                  </div>
+                )}
+
+                {/* Existing documents */}
+                {profile?.documents?.length > 0 ? (
+                  <div className="space-y-2 mb-4">
+                    {profile.documents.map((doc, i) => (
+                      <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-800 capitalize">{doc.type?.replace(/_/g, " ")}</p>
+                            <p className="text-xs text-gray-500 truncate">{doc.fileName}</p>
+                          </div>
+                        </div>
+                        <a href={doc.s3Url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium flex-shrink-0 ml-2">
+                          View <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mb-4 italic">No documents submitted yet.</p>
+                )}
+
+                {/* Upload form */}
+                <div className="border border-dashed border-gray-300 rounded-lg p-4 space-y-3">
+                  <p className="text-xs font-semibold text-gray-600">Upload a document</p>
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="company_registration">Company Registration Certificate</option>
+                    <option value="gst_certificate">GST Certificate</option>
+                    <option value="address_proof">Address Proof</option>
+                    <option value="identity_proof">Owner / Director ID Proof</option>
+                    <option value="security_agency_license">Security Agency License (PSARA)</option>
+                  </select>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setDocFile(e.target.files[0])}
+                    className="w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <button
+                    disabled={!docFile || uploadingDoc}
+                    onClick={async () => {
+                      if (!docFile) return;
+                      setUploadingDoc(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append("document", docFile);
+                        fd.append("docType", docType);
+                        const token = localStorage.getItem("token");
+                        await axios.post(`${BACKEND_URL}/company/upload-document`, fd, {
+                          headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+                        });
+                        toast.success("Document uploaded successfully!");
+                        setDocFile(null);
+                        fetchProfile();
+                      } catch (err) {
+                        toast.error(err.response?.data?.message || "Upload failed");
+                      } finally {
+                        setUploadingDoc(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {uploadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {uploadingDoc ? "Uploading…" : "Upload"}
+                  </button>
                 </div>
               </div>
 

@@ -22,6 +22,27 @@ const BUCKET_URL =
  * @param {string} jobId        - Used to namespace the S3 key
  * @param {string} walletAddress
  */
+/**
+ * Upload a company verification document to S3.
+ * Returns the public URL of the uploaded file.
+ */
+export async function uploadCompanyDocument(fileBuffer, mimeType, walletAddress, originalName) {
+  const ext = originalName?.split(".").pop()?.toLowerCase() || "pdf";
+  const key = `company-documents/${walletAddress}/${uuidv4()}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: mimeType || "application/octet-stream",
+      ACL: "public-read",
+    })
+  );
+
+  return `${BUCKET_URL}/${key}`;
+}
+
 export async function uploadProofPhoto(fileBuffer, mimeType, jobId, walletAddress) {
   // Mobile cameras sometimes send generic mimetypes (application/octet-stream, image/heic).
   // Normalize to image/jpeg so browsers can render the stored photo.

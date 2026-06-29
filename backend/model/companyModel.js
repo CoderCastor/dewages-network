@@ -71,9 +71,10 @@ const companyProfileSchema = new mongoose.Schema({
         type: String,
         enum: [
           "company_registration",
-          "tax_certificate",
+          "gst_certificate",
           "address_proof",
           "identity_proof",
+          "security_agency_license",
         ],
       },
       s3Url: String, // Changed from ipfsHash to s3Url
