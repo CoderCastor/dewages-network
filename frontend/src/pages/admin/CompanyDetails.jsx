@@ -96,6 +96,16 @@ export default function CompanyDetailPage() {
       );
       const data = await res.json();
       setValidationResult(data);
+      // Sync the top verification badge with the live check result
+      if (data.checks) {
+        setCompany(prev => prev ? {
+          ...prev,
+          verificationStatus: {
+            ...prev.verificationStatus,
+            email: data.checks.emailVerified,
+          },
+        } : null);
+      }
     } catch {
       toast.error("Validation check failed");
     } finally {

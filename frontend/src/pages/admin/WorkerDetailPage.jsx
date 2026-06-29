@@ -96,6 +96,17 @@ export default function WorkerDetailPage() {
       );
       const data = await res.json();
       setValidationResult(data);
+      // Sync the top verification badges with the live check results
+      if (data.checks) {
+        setWorker(prev => prev ? {
+          ...prev,
+          verificationStatus: {
+            ...prev.verificationStatus,
+            email: data.checks.emailVerified,
+            identity: data.checks.panVerified,
+          },
+        } : null);
+      }
     } catch {
       toast.error("Validation check failed");
     } finally {
