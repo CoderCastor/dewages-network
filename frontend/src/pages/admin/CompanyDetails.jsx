@@ -132,11 +132,12 @@ export default function CompanyDetailPage() {
     setOnChainError(false);
 
     try {
-      const provider = new AnchorProvider(
-        connection,
-        { publicKey: null, signTransaction: null, signAllTransactions: null },
-        { commitment: "confirmed" }
-      );
+      const readWallet = {
+        publicKey: wallet.publicKey || PublicKey.default,
+        signTransaction: async (tx) => tx,
+        signAllTransactions: async (txs) => txs,
+      };
+      const provider = new AnchorProvider(connection, readWallet, { commitment: "confirmed" });
       const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
       const companyPublicKey = new PublicKey(company.walletAddress);
@@ -197,18 +198,18 @@ export default function CompanyDetailPage() {
     setVerifying(true);
     const toastId = toast.loading("Verifying company on blockchain...");
 
+    let computedPDA = null;
     try {
       const provider = getProvider();
       const program = new Program(IDL, PROGRAM_ID_KEY, provider);
 
-      // Convert company's wallet address to PublicKey
       const companyPublicKey = new PublicKey(company.walletAddress);
 
-      // Derive PDA for company profile (using target user's key)
       const [userProfilePDA, bump] = await PublicKey.findProgramAddress(
         [Buffer.from("user_profile"), companyPublicKey.toBuffer()],
         PROGRAM_ID_KEY
       );
+      computedPDA = userProfilePDA;
 
       console.log("Admin wallet:", wallet.publicKey.toString());
       console.log("Company wallet (target):", companyPublicKey.toString());
@@ -216,16 +217,10 @@ export default function CompanyDetailPage() {
       console.log("PDA Bump:", bump);
       setPdaAddress(userProfilePDA.toString());
 
-      // Prepare user type enum (Employer / Company)
       const userType = { employer: {} };
-
-      // Prepare location string
       const location =
-        `${company.location?.city || ""}, ${company.location?.state || ""
-          }`.trim() || "Unknown";
+        `${company.location?.city || ""}, ${company.location?.state || ""}`.trim() || "Unknown";
 
-      // Call create_user_profile instruction
-      // Admin signs the transaction and creates PDA for the company
       const tx = await program.methods
         .createUserProfile(
           userType,
@@ -235,52 +230,41 @@ export default function CompanyDetailPage() {
         )
         .accounts({
           userProfile: userProfilePDA,
-          targetUser: companyPublicKey, // Company's wallet (target user)
-          admin: wallet.publicKey, // Admin wallet (signer & payer)
+          targetUser: companyPublicKey,
+          admin: wallet.publicKey,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
 
       console.log("Transaction signature:", tx);
-      console.log("PDA Address:", userProfilePDA.toString());
-
-      // Update verification status in database
       await updateVerificationStatus(userProfilePDA.toString());
 
       toast.success(
         <div>
           <div className="font-bold">Company Verified on Blockchain!</div>
           <div className="text-xs mt-1">TX: {tx.slice(0, 8)}...</div>
-          <div className="text-xs mt-1">
-            PDA: {userProfilePDA.toString().slice(0, 8)}...
-          </div>
+          <div className="text-xs mt-1">PDA: {userProfilePDA.toString().slice(0, 8)}...</div>
         </div>,
         { id: toastId, duration: 5000 }
       );
 
-      // Refresh on-chain data
       await fetchOnChainData();
     } catch (err) {
       console.error("Error verifying on blockchain:", err);
 
-      if (
-        err.message.includes(
-          "Attempt to debit an account but found no record of a prior credit"
-        )
-      ) {
-        toast.error("Admin wallet needs to be funded with SOL", {
-          id: toastId,
-        });
+      if (err.message.includes("Attempt to debit an account but found no record of a prior credit")) {
+        toast.error("Admin wallet needs to be funded with SOL", { id: toastId });
       } else if (err.message.includes("UnauthorizedAdmin")) {
         toast.error("This wallet is not authorized as admin", { id: toastId });
       } else if (err.message.includes("already in use")) {
-        toast.error("Company profile already exists on blockchain", {
-          id: toastId,
-        });
+        // Profile already exists on-chain — just sync the DB record
+        toast.success("Profile already on blockchain. Updating database record...", { id: toastId });
+        if (computedPDA) {
+          await updateVerificationStatus(computedPDA.toString());
+          await fetchOnChainData();
+        }
       } else {
-        toast.error(err.message || "Failed to verify on blockchain", {
-          id: toastId,
-        });
+        toast.error(err.message || "Failed to verify on blockchain", { id: toastId });
       }
     } finally {
       setVerifying(false);

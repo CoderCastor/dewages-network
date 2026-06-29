@@ -12,7 +12,10 @@ import { resolveDisputeOnChain, createDisputeOnChain } from "../services/dispute
  */
 export const raiseDispute = async (req, res) => {
   try {
-    const { jobId, reason, disputePDA: frontendDisputePDA, txSignature: frontendTxSig, raisedBy } = req.body;
+    const {
+      jobId, reason, disputePDA: frontendDisputePDA, txSignature: frontendTxSig, raisedBy,
+      otpNotProvided, evidencePhotoUrl, evidenceGpsCoordinates,
+    } = req.body;
     const userWallet = req.user.walletAddress;
 
     if (!jobId || !reason || !raisedBy) {
@@ -31,15 +34,29 @@ export const raiseDispute = async (req, res) => {
     if (raisedBy === "worker" && job.assignedWorker !== userWallet) {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
-    if (job.status !== "pending_verification") {
-      return res.status(400).json({ success: false, message: "Dispute can only be raised during the dispute period" });
+
+    // otpNotProvided disputes can be raised from in_progress (worker never got End OTP)
+    const isOtpNotProvided = raisedBy === "worker" && otpNotProvided === true;
+    const allowedStatuses = isOtpNotProvided
+      ? ["in_progress"]
+      : ["pending_verification"];
+
+    if (!allowedStatuses.includes(job.status)) {
+      const msg = isOtpNotProvided
+        ? "This dispute type can only be raised when the job is in progress"
+        : "Dispute can only be raised during the dispute period (after proof submission)";
+      return res.status(400).json({ success: false, message: msg });
     }
-    if (job.disputePeriod?.endsAt && new Date() > new Date(job.disputePeriod.endsAt)) {
-      return res.status(400).json({ success: false, message: "Dispute period has expired" });
+
+    if (!isOtpNotProvided) {
+      if (job.disputePeriod?.endsAt && new Date() > new Date(job.disputePeriod.endsAt)) {
+        return res.status(400).json({ success: false, message: "Dispute period has expired" });
+      }
+      if (!job.disputePeriod?.isActive) {
+        return res.status(400).json({ success: false, message: "Dispute period is not active yet" });
+      }
     }
-    if (!job.disputePeriod?.isActive) {
-      return res.status(400).json({ success: false, message: "Dispute period is not active yet" });
-    }
+
     if (job.status === "disputed" || job.dispute?.status) {
       return res.status(400).json({ success: false, message: "A dispute has already been raised for this job" });
     }
@@ -80,6 +97,9 @@ export const raiseDispute = async (req, res) => {
       reason: reason.trim(),
       raisedBy,
       raisedByWallet: userWallet,
+      otpNotProvided: isOtpNotProvided,
+      evidencePhotoUrl: evidencePhotoUrl || null,
+      evidenceGpsCoordinates: evidenceGpsCoordinates || null,
       status: "open",
       createdAt: new Date(),
     };

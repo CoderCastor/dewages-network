@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 
 // Company Profile Schema
 const companyProfileSchema = new mongoose.Schema({
-  walletAddress: { type: String, required: true },
-  PDAAddress: { type: String, default: null },
+  walletAddress: { type: String, required: true, unique: true, index: true },
+  PDAAddress: { type: String, default: null, sparse: true },
   
   // Company Basic Info
   companyName: { type: String, required: false, trim: true },

@@ -1717,9 +1717,8 @@ const WorkerSignupForm = () => {
                   <motion.button
                     type="button"
                     onClick={nextStep}
-                    disabled={!isStepReadyToProceed(currentStep)}
-                    whileHover={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 1.05 }}
-                    whileTap={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 0.95 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 ${
                       !isStepReadyToProceed(currentStep)
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
