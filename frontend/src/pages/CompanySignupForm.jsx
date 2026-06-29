@@ -136,6 +136,14 @@ const CompanySignupForm = () => {
   const navigate = useNavigate()
   const { t } = useTranslation();
 
+  // Email OTP Verification state
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [isOtpSending, setIsOtpSending] = useState(false);
+  const [isOtpVerifying, setIsOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState("");
+
   const [formData, setFormData] = useState({
     walletAddress: "",
     companyName: "",
@@ -207,8 +215,51 @@ const CompanySignupForm = () => {
     },
   ];
 
+  // ── Email OTP handlers ──────────────────────────────────────────────────────
+  const handleSendOtp = async () => {
+    if (!formData.email || !z.string().email().safeParse(formData.email).success) {
+      toast.error("Please enter a valid email address first");
+      return;
+    }
+    setIsOtpSending(true);
+    setOtpError("");
+    try {
+      await axios.post(`${BACKEND_URL}/company/send-otp`, { email: formData.email });
+      setOtpSent(true);
+      toast.success("OTP sent! Check your inbox.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send OTP. Try again.");
+    } finally {
+      setIsOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpValue || otpValue.length !== 6) {
+      setOtpError("Enter the 6-digit OTP");
+      return;
+    }
+    setIsOtpVerifying(true);
+    setOtpError("");
+    try {
+      await axios.post(`${BACKEND_URL}/company/verify-otp`, {
+        email: formData.email,
+        otp: otpValue,
+      });
+      setEmailVerified(true);
+      setOtpSent(false);
+      setOtpValue("");
+      toast.success("Email verified! ✅");
+    } catch (err) {
+      setOtpError(err.response?.data?.message || "Invalid OTP. Try again.");
+    } finally {
+      setIsOtpVerifying(false);
+    }
+  };
+
   // Update form data helper
   const updateFormData = (field, value) => {
+
     if (field.includes(".")) {
       const keys = field.split(".");
       setFormData((prev) => {
@@ -227,6 +278,39 @@ const CompanySignupForm = () => {
 
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const isStepReadyToProceed = (stepIndex) => {
+    switch (stepIndex) {
+      case 0:
+        return (
+          formData.walletAddress &&
+          formData.walletAddress.length >= 32 &&
+          formData.companyName &&
+          formData.phone &&
+          phoneRegex.test(formData.phone) &&
+          (!formData.email || (z.string().email().safeParse(formData.email).success && emailVerified))
+        );
+      case 1:
+        return (
+          formData.location.address &&
+          formData.location.city &&
+          formData.location.state
+        );
+      case 2:
+        return (
+          formData.interestedCategories &&
+          formData.interestedCategories.length > 0
+        );
+      case 3:
+        return (
+          formData.contactPerson.name &&
+          formData.contactPerson.phone &&
+          formData.contactPerson.designation
+        );
+      default:
+        return true;
     }
   };
 
@@ -254,6 +338,8 @@ const CompanySignupForm = () => {
             !z.string().email().safeParse(formData.email).success
           ) {
             stepErrors.email = "Invalid email format";
+          } else if (formData.email && !emailVerified) {
+            stepErrors.email = "Please verify your email before continuing";
           }
           break;
 
@@ -448,13 +534,81 @@ const CompanySignupForm = () => {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     value={formData.email}
-                    onChange={(e) => updateFormData("email", e.target.value)}
+                    onChange={(e) => {
+                      updateFormData("email", e.target.value);
+                      // Reset verification if email changes
+                      if (emailVerified) {
+                        setEmailVerified(false);
+                        setOtpSent(false);
+                        setOtpValue("");
+                        setOtpError("");
+                      }
+                    }}
                     type="email"
                     placeholder="company@email.com"
                     className="pl-10"
                     error={!!errors.email}
+                    readOnly={emailVerified}
                   />
                 </div>
+
+                {/* ── Email OTP Verification Widget ── */}
+                {!emailVerified ? (
+                  <div className="mt-2 space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isOtpSending}
+                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      {isOtpSending ? (
+                        <><Loader2 size={13} className="animate-spin" /> Sending OTP...</>
+                      ) : (
+                        <><Mail size={13} /> {otpSent ? "Resend OTP" : "Verify Email"}</>
+                      )}
+                    </button>
+
+                    {otpSent && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={otpValue}
+                          onChange={(e) => {
+                            setOtpValue(e.target.value.replace(/\D/g, ""));
+                            setOtpError("");
+                          }}
+                          placeholder="Enter 6-digit OTP"
+                          className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 tracking-widest ${
+                            otpError ? "border-red-400" : "border-gray-300"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={isOtpVerifying}
+                          className="px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium whitespace-nowrap"
+                        >
+                          {isOtpVerifying ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            "Confirm OTP"
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    {otpError && (
+                      <p className="text-red-500 text-xs flex items-center gap-1">
+                        <AlertCircle size={11} /> {otpError}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1 font-medium">
+                    <CheckCircle size={13} /> Email Verified
+                  </p>
+                )}
               </FormField>
 
               <FormField label="Website (Optional)" error={errors.website}>
@@ -973,9 +1127,14 @@ const CompanySignupForm = () => {
                   <motion.button
                     type="button"
                     onClick={nextStep}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
+                    disabled={!isStepReadyToProceed(currentStep)}
+                    whileHover={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 1.05 }}
+                    whileTap={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 0.95 }}
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 ${
+                      !isStepReadyToProceed(currentStep)
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
                   >
                     <span>Next</span>
                     <ChevronRight size={16} />
@@ -983,10 +1142,14 @@ const CompanySignupForm = () => {
                 ) : (
                   <motion.button
                     onClick={onSubmit}
-                    disabled={isSubmitting}
-                    whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
-                    whileTap={{ scale: isSubmitting ? 1 : 0.95 }}
-                    className="flex items-center space-x-2 px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                    disabled={isSubmitting || !isStepReadyToProceed(steps.length - 2)}
+                    whileHover={{ scale: (isSubmitting || !isStepReadyToProceed(steps.length - 2)) ? 1 : 1.05 }}
+                    whileTap={{ scale: (isSubmitting || !isStepReadyToProceed(steps.length - 2)) ? 1 : 0.95 }}
+                    className={`flex items-center space-x-2 px-8 py-3 rounded-lg transition-all duration-200 ${
+                      (isSubmitting || !isStepReadyToProceed(steps.length - 2))
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
                   >
                     {isSubmitting ? (
                       <>

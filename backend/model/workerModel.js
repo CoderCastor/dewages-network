@@ -45,10 +45,17 @@ const workerProfileSchema = new mongoose.Schema({
       ],
     },
   ],
+  panDetails: {
+    panNumber:    { type: String, uppercase: true, default: null },
+    nameAsPerPan: { type: String, default: null },
+    dateOfBirth:  { type: String, default: null }, // stored as DD/MM/YYYY
+    verifiedAt:   { type: Date,   default: null },
+    isVerified:   { type: Boolean, default: false },
+  },
   verificationStatus: {
-    phone: { type: Boolean, default: false },
-    email: { type: Boolean, default: false },
-    identity: { type: Boolean, default: false },
+    phone:    { type: Boolean, default: false },
+    email:    { type: Boolean, default: false },
+    identity: { type: Boolean, default: false }, // set true when PAN is verified
   },
   documents: [
     {

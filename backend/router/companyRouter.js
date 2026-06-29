@@ -5,6 +5,7 @@ import {
   getCompanyProfile,
   updateCompanyProfile,
 } from "../controller/companyController.js";
+import { sendOTP, verifyOTP } from "../controller/otpController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { CompanyProfile } from "../model/companyModel.js";
 
@@ -15,6 +16,10 @@ router.post("/verify-wallet", verifyCompanyWallet);
 
 // POST /api/company/signup
 router.post("/signup", signupCompany);
+
+// Email OTP Verification
+router.post("/send-otp", sendOTP);
+router.post("/verify-otp", verifyOTP);
 
 // GET /api/company/profile/me - Get current company's own profile
 router.get("/profile/me", authMiddleware, async (req, res) => {

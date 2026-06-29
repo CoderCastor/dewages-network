@@ -265,6 +265,23 @@ const WorkerSignupForm = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  // PAN Verification state
+  const [panData, setPanData] = useState({
+    pan: "",
+    name_as_per_pan: "",
+    date_of_birth: "", // stored as YYYY-MM-DD (HTML date input), sent as DD/MM/YYYY
+  });
+  const [panVerified, setPanVerified] = useState(false);
+  const [isPanVerifying, setIsPanVerifying] = useState(false);
+
+  // Email OTP Verification state
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [isOtpSending, setIsOtpSending] = useState(false);
+  const [isOtpVerifying, setIsOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState("");
+
   const [formData, setFormData] = useState({
     walletAddress: "",
     name: "",
@@ -377,12 +394,104 @@ const WorkerSignupForm = () => {
       color: "pink",
     },
     {
-      title: "Review & Submit",
+      title: "KYC Verification",
       icon: Shield,
-      description: "Review your information",
+      description: "Verify your PAN",
       color: "indigo",
     },
+    {
+      title: "Review & Submit",
+      icon: CheckCircle,
+      description: "Review your information",
+      color: "green",
+    },
   ];
+
+  // ── PAN Verification handler ────────────────────────────────────────────────
+  const handlePanVerify = async () => {
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+    if (!panData.pan || !panData.name_as_per_pan || !panData.date_of_birth) {
+      toast.error("Please fill in all PAN details");
+      return;
+    }
+    if (!panRegex.test(panData.pan.toUpperCase())) {
+      toast.error("Invalid PAN format — expected ABCDE1234F");
+      return;
+    }
+    if (!WalletAddress) {
+      toast.error("Wallet not connected");
+      return;
+    }
+
+    // Convert date from YYYY-MM-DD (HTML input) → DD/MM/YYYY (Sandbox API)
+    const [year, month, day] = panData.date_of_birth.split("-");
+    const formattedDob = `${day}/${month}/${year}`;
+
+    setIsPanVerifying(true);
+    try {
+      const res = await axios.post(`${BACKEND_URL}/worker/verify-pan`, {
+        pan: panData.pan.toUpperCase(),
+        name_as_per_pan: panData.name_as_per_pan,
+        date_of_birth: formattedDob,
+        walletAddress: WalletAddress,
+      });
+
+      if (res.status === 200) {
+        setPanVerified(true);
+        toast.success("PAN verified successfully! ✅");
+      }
+    } catch (error) {
+      console.error("PAN verify error:", error);
+      toast.error(
+        error.response?.data?.message || "PAN verification failed. Please check your details."
+      );
+    } finally {
+      setIsPanVerifying(false);
+    }
+  };
+
+  // ── Email OTP handlers ────────────────────────────────────────────────────
+  const handleSendOtp = async () => {
+    if (!formData.email || !z.string().email().safeParse(formData.email).success) {
+      toast.error("Please enter a valid email address first");
+      return;
+    }
+    setIsOtpSending(true);
+    setOtpError("");
+    try {
+      await axios.post(`${BACKEND_URL}/worker/send-otp`, { email: formData.email });
+      setOtpSent(true);
+      toast.success("OTP sent! Check your inbox.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send OTP. Try again.");
+    } finally {
+      setIsOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpValue || otpValue.length !== 6) {
+      setOtpError("Enter the 6-digit OTP");
+      return;
+    }
+    setIsOtpVerifying(true);
+    setOtpError("");
+    try {
+      await axios.post(`${BACKEND_URL}/worker/verify-otp`, {
+        email: formData.email,
+        otp: otpValue,
+      });
+      setEmailVerified(true);
+      setOtpSent(false);
+      setOtpValue("");
+      toast.success("Email verified! ✅");
+    } catch (err) {
+      setOtpError(err.response?.data?.message || "Invalid OTP. Try again.");
+    } finally {
+      setIsOtpVerifying(false);
+    }
+  };
 
   // Update form data helper
   const updateFormData = (field, value) => {
@@ -405,6 +514,49 @@ const WorkerSignupForm = () => {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const isStepReadyToProceed = (stepIndex) => {
+    switch (stepIndex) {
+      case 0:
+        return (
+          formData.walletAddress &&
+          formData.walletAddress.length >= 32 &&
+          formData.name &&
+          formData.phone &&
+          phoneRegex.test(formData.phone) &&
+          formData.email &&
+          z.string().email().safeParse(formData.email).success &&
+          emailVerified
+        );
+      case 1:
+        return (
+          formData.location.address &&
+          formData.location.city &&
+          formData.location.state
+        );
+      case 2:
+        return (
+          formData.skills && formData.skills.length > 0 &&
+          formData.jobCategories && formData.jobCategories.length > 0
+        );
+      case 3:
+        return (
+          formData.preferences.minPaymentAmount >= 0 &&
+          formData.preferences.workingHours.days &&
+          formData.preferences.workingHours.days.length > 0
+        );
+      case 4:
+        return (
+          formData.emergencyContact.name &&
+          formData.emergencyContact.phone &&
+          formData.emergencyContact.relation
+        );
+      case 5:
+        return panVerified;
+      default:
+        return true;
     }
   };
 
@@ -432,6 +584,8 @@ const WorkerSignupForm = () => {
             !z.string().email().safeParse(formData.email).success
           ) {
             stepErrors.email = "Invalid email format";
+          } else if (!emailVerified) {
+            stepErrors.email = "Please verify your email before continuing";
           }
           break;
 
@@ -469,6 +623,12 @@ const WorkerSignupForm = () => {
             stepErrors["emergencyContact.phone"] = "Contact phone required";
           if (!formData.emergencyContact.relation)
             stepErrors["emergencyContact.relation"] = "Relation required";
+          break;
+
+        case 5:
+          // PAN verification must be completed before proceeding
+          if (!panVerified)
+            stepErrors.pan = "Please verify your PAN before continuing";
           break;
       }
     } catch {
@@ -619,13 +779,81 @@ const WorkerSignupForm = () => {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     value={formData.email}
-                    onChange={(e) => updateFormData("email", e.target.value)}
+                    onChange={(e) => {
+                      updateFormData("email", e.target.value);
+                      // Reset verification if email changes
+                      if (emailVerified) {
+                        setEmailVerified(false);
+                        setOtpSent(false);
+                        setOtpValue("");
+                        setOtpError("");
+                      }
+                    }}
                     type="email"
                     placeholder="rajesh.kumar@email.com"
                     className="pl-10"
                     error={!!errors.email}
+                    readOnly={emailVerified}
                   />
                 </div>
+
+                {/* ── Email OTP Verification Widget ── */}
+                {!emailVerified ? (
+                  <div className="mt-2 space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isOtpSending}
+                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      {isOtpSending ? (
+                        <><Loader2 size={13} className="animate-spin" /> Sending OTP...</>
+                      ) : (
+                        <><Mail size={13} /> {otpSent ? "Resend OTP" : "Verify Email"}</>
+                      )}
+                    </button>
+
+                    {otpSent && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={otpValue}
+                          onChange={(e) => {
+                            setOtpValue(e.target.value.replace(/\D/g, ""));
+                            setOtpError("");
+                          }}
+                          placeholder="Enter 6-digit OTP"
+                          className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 tracking-widest ${
+                            otpError ? "border-red-400" : "border-gray-300"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={isOtpVerifying}
+                          className="px-3 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium whitespace-nowrap"
+                        >
+                          {isOtpVerifying ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            "Confirm OTP"
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    {otpError && (
+                      <p className="text-red-500 text-xs flex items-center gap-1">
+                        <AlertCircle size={11} /> {otpError}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1 font-medium">
+                    <CheckCircle size={13} /> Email Verified
+                  </p>
+                )}
               </FormField>
             </div>
 
@@ -1120,6 +1348,135 @@ const WorkerSignupForm = () => {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-800">
+                  KYC / PAN Verification
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Verify your identity with your PAN card
+                </p>
+              </div>
+            </div>
+
+            {panVerified ? (
+              /* ── Verified success state ── */
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-10 space-y-4"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                  className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center"
+                >
+                  <CheckCircle className="w-12 h-12 text-green-500" />
+                </motion.div>
+                <h3 className="text-xl font-bold text-green-700">PAN Verified Successfully!</h3>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 w-full max-w-sm space-y-1 text-sm text-gray-700">
+                  <p><span className="font-semibold">PAN Number:</span> {panData.pan.toUpperCase()}</p>
+                  <p><span className="font-semibold">Name:</span> {panData.name_as_per_pan}</p>
+                  <p><span className="font-semibold">Date of Birth:</span> {panData.date_of_birth}</p>
+                </div>
+                <p className="text-sm text-gray-500">
+                  You can now proceed to the final review step.
+                </p>
+              </motion.div>
+            ) : (
+              /* ── PAN input form ── */
+              <div className="space-y-5 max-w-md">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800 flex items-start gap-2">
+                  <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                  <span>
+                    Your PAN card details are required for identity verification.
+                    This information is securely stored and only used for KYC compliance.
+                  </span>
+                </div>
+
+                <FormField label="PAN Number" required error={errors.pan}>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      value={panData.pan}
+                      onChange={(e) =>
+                        setPanData((prev) => ({
+                          ...prev,
+                          pan: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="ABCDE1234F"
+                      maxLength={10}
+                      className="pl-10 uppercase tracking-widest"
+                      error={!!errors.pan}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Format: 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)</p>
+                </FormField>
+
+                <FormField label="Name as per PAN" required>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      value={panData.name_as_per_pan}
+                      onChange={(e) =>
+                        setPanData((prev) => ({
+                          ...prev,
+                          name_as_per_pan: e.target.value,
+                        }))
+                      }
+                      placeholder="Rajesh Kumar"
+                      className="pl-10"
+                    />
+                  </div>
+                </FormField>
+
+                <FormField label="Date of Birth" required>
+                  <Input
+                    type="date"
+                    value={panData.date_of_birth}
+                    onChange={(e) =>
+                      setPanData((prev) => ({
+                        ...prev,
+                        date_of_birth: e.target.value,
+                      }))
+                    }
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                </FormField>
+
+                <motion.button
+                  type="button"
+                  onClick={handlePanVerify}
+                  disabled={isPanVerifying}
+                  whileHover={{ scale: isPanVerifying ? 1 : 1.03 }}
+                  whileTap={{ scale: isPanVerifying ? 1 : 0.97 }}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                >
+                  {isPanVerifying ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Verifying PAN...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield size={18} />
+                      <span>Verify PAN</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            )}
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">
                   Review & Submit
                 </h2>
                 <p className="text-sm text-gray-600">
@@ -1222,6 +1579,22 @@ const WorkerSignupForm = () => {
                     {formData.emergencyContact.relation}
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-2">KYC / PAN Verification</h4>
+                {panVerified ? (
+                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <CheckCircle size={16} className="text-green-500" />
+                    <span className="font-medium">PAN Verified</span>
+                    <span className="text-gray-500 ml-auto">{panData.pan.toUpperCase()}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <AlertCircle size={16} className="text-red-500" />
+                    <span>PAN not verified — go back to complete KYC</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1344,9 +1717,14 @@ const WorkerSignupForm = () => {
                   <motion.button
                     type="button"
                     onClick={nextStep}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200"
+                    disabled={!isStepReadyToProceed(currentStep)}
+                    whileHover={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 1.05 }}
+                    whileTap={{ scale: !isStepReadyToProceed(currentStep) ? 1 : 0.95 }}
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 ${
+                      !isStepReadyToProceed(currentStep)
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-purple-600 text-white hover:bg-purple-700"
+                    }`}
                   >
                     <span>Next</span>
                     <ChevronRight size={16} />
@@ -1354,10 +1732,14 @@ const WorkerSignupForm = () => {
                 ) : (
                   <motion.button
                     onClick={onSubmit}
-                    disabled={isSubmitting}
-                    whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
-                    whileTap={{ scale: isSubmitting ? 1 : 0.95 }}
-                    className="flex items-center space-x-2 px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                    disabled={isSubmitting || !isStepReadyToProceed(steps.length - 2)}
+                    whileHover={{ scale: (isSubmitting || !isStepReadyToProceed(steps.length - 2)) ? 1 : 1.05 }}
+                    whileTap={{ scale: (isSubmitting || !isStepReadyToProceed(steps.length - 2)) ? 1 : 0.95 }}
+                    className={`flex items-center space-x-2 px-8 py-3 rounded-lg transition-all duration-200 ${
+                      (isSubmitting || !isStepReadyToProceed(steps.length - 2))
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
                   >
                     {isSubmitting ? (
                       <>
