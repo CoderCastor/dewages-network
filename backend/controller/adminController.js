@@ -212,3 +212,50 @@ export async function verifyCompany(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+export async function runValidation(req, res) {
+  try {
+    const { walletAddress } = req.params;
+    const { type } = req.query; // "worker" or "company"
+
+    const checks = { emailVerified: false, panVerified: false, panDuplicate: false, underAge: false };
+
+    if (type === "worker") {
+      const worker = await WorkerProfile.findOne({ walletAddress });
+      if (!worker) return res.status(404).json({ error: "Worker not found" });
+
+      checks.emailVerified = !!worker.verificationStatus?.email;
+      checks.panVerified = !!worker.panDetails?.isVerified;
+
+      if (worker.panDetails?.panNumber) {
+        const count = await WorkerProfile.countDocuments({
+          "panDetails.panNumber": worker.panDetails.panNumber,
+          walletAddress: { $ne: walletAddress },
+        });
+        checks.panDuplicate = count > 0;
+      }
+
+      // Age check from stored DOB (DD/MM/YYYY)
+      if (worker.panDetails?.dateOfBirth) {
+        const [dd, mm, yyyy] = worker.panDetails.dateOfBirth.split("/");
+        const dob = new Date(`${yyyy}-${mm}-${dd}`);
+        const today = new Date();
+        const age = today.getFullYear() - dob.getFullYear() -
+          (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+        checks.underAge = age < 18;
+      }
+    } else {
+      const company = await CompanyProfile.findOne({ walletAddress });
+      if (!company) return res.status(404).json({ error: "Company not found" });
+      checks.emailVerified = !!company.verificationStatus?.email;
+      checks.panVerified = true; // companies don't use PAN
+    }
+
+    const isValid = checks.emailVerified && checks.panVerified && !checks.panDuplicate && !checks.underAge;
+
+    res.json({ success: true, isValid, checks });
+  } catch (err) {
+    console.error("Run validation error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

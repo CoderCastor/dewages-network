@@ -16,8 +16,10 @@ import {
   FileText,
   Calendar,
   Shield,
+  ShieldCheck,
   XCircle,
   Briefcase,
+  Loader2,
 } from "lucide-react";
 import { BACKEND_URL, PROGRAM_ID } from "@/env-variables";
 import IDL from "@/idl/employment_platform.json" with { type: "json" };
@@ -38,6 +40,8 @@ export default function CompanyDetailPage() {
   const [onChainData, setOnChainData] = useState(null);
   const [loadingOnChain, setLoadingOnChain] = useState(false);
   const [onChainError, setOnChainError] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  const [runningValidation, setRunningValidation] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
@@ -79,6 +83,24 @@ export default function CompanyDetailPage() {
     }
     verifyUserOnBackend();
   }, [onChainData, walletAddress, pdaAddress]);
+
+  const handleRunValidation = async () => {
+    setRunningValidation(true);
+    setValidationResult(null);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(
+        `${BACKEND_URL}/admin/run-validation/${company.walletAddress}?type=company`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      setValidationResult(data);
+    } catch {
+      toast.error("Validation check failed");
+    } finally {
+      setRunningValidation(false);
+    }
+  };
 
   const fetchCompanyDetails = async () => {
     setLoading(true);
@@ -843,6 +865,31 @@ export default function CompanyDetailPage() {
                     )}
                   </div>
                 </div>
+
+                <button
+                  onClick={handleRunValidation}
+                  disabled={runningValidation}
+                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  {runningValidation ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" />Running…</>
+                  ) : (
+                    <><ShieldCheck className="w-4 h-4" />Run Validation</>
+                  )}
+                </button>
+
+                {validationResult && (
+                  <div className={`mt-3 rounded-lg p-3 text-sm border ${validationResult.isValid ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                    <p className={`font-semibold mb-2 ${validationResult.isValid ? "text-green-800" : "text-red-800"}`}>
+                      {validationResult.isValid ? "✅ All checks passed — safe to approve" : "⚠️ Issues found — review before approving"}
+                    </p>
+                    <ul className="space-y-1 text-xs">
+                      <li className={validationResult.checks?.emailVerified ? "text-green-700" : "text-red-700"}>
+                        {validationResult.checks?.emailVerified ? "✓" : "✗"} Email verified
+                      </li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Timestamps */}
