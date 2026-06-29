@@ -25,9 +25,9 @@ import {
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import { BorshCoder } from "@coral-xyz/anchor";
 import axios from "axios";
-import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
+import { BACKEND_URL, RPC_URL } from "../env-variables";
 import idl from "../idl/employment_platform.json" with { type: "json" };
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -133,19 +133,13 @@ const CompanyProfilePage = () => {
       setLoadingOnChain(true);
       setOnChainError(null);
       const connection = new Connection(RPC_URL, "confirmed");
-      const programIdKey = new PublicKey(PROGRAM_ID);
-      const readWallet = {
-        publicKey: publicKey || PublicKey.default,
-        signTransaction: async (tx) => tx,
-        signAllTransactions: async (txs) => txs,
-      };
-      const provider = new AnchorProvider(connection, readWallet, {
-        commitment: "confirmed",
-        preflightCommitment: "confirmed",
-      });
-      const program = new Program(idl, programIdKey, provider);
       const pda = new PublicKey(profile.PDAAddress);
-      const data = await program.account.userProfile.fetch(pda);
+      const accountInfo = await connection.getAccountInfo(pda);
+      if (!accountInfo) {
+        throw new Error("Account not found on-chain — PDA may not exist yet.");
+      }
+      const coder = new BorshCoder(idl);
+      const data = coder.accounts.decode("UserProfile", accountInfo.data);
       const display = {};
       for (const [k, v] of Object.entries(data)) {
         if (v && typeof v.toString === "function" && typeof v !== "string") {
