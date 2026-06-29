@@ -406,6 +406,7 @@ const CompanySignupForm = () => {
       console.log(formData);
       const res = await axios.post(`${BACKEND_URL}/company/signup`, {
         formData,
+        emailVerified,
         token: localStorage.getItem("token"),
       });
       console.log(res);

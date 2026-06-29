@@ -17,6 +17,27 @@ const BUCKET = process.env.S3_BUCKET_NAME;
  * Returns a pre-signed GET URL (valid 7 days) so photos remain viewable
  * without requiring the bucket to have public-read ACLs enabled.
  */
+/**
+ * Upload a company verification document to S3.
+ * Returns the public URL of the uploaded file.
+ */
+export async function uploadCompanyDocument(fileBuffer, mimeType, walletAddress, originalName) {
+  const ext = originalName?.split(".").pop()?.toLowerCase() || "pdf";
+  const key = `company-documents/${walletAddress}/${uuidv4()}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: mimeType || "application/octet-stream",
+      ACL: "public-read",
+    })
+  );
+
+  return `${BUCKET_URL}/${key}`;
+}
+
 export async function uploadProofPhoto(fileBuffer, mimeType, jobId, walletAddress) {
   const normalizedMime = mimeType && mimeType.startsWith("image/") ? mimeType : "image/jpeg";
   const extRaw = normalizedMime.split("/")[1];

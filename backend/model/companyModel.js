@@ -71,7 +71,7 @@ const companyProfileSchema = new mongoose.Schema({
         type: String,
         enum: [
           "company_registration",
-          "tax_certificate",
+          "gst_certificate",
           "address_proof",
           "identity_proof",
         ],

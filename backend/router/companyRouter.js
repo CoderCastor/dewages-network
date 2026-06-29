@@ -1,13 +1,17 @@
 import express from "express";
+import multer from "multer";
 import {
   verifyCompanyWallet,
   signupCompany,
   getCompanyProfile,
   updateCompanyProfile,
+  uploadCompanyDocument,
 } from "../controller/companyController.js";
 import { sendOTP, verifyOTP } from "../controller/otpController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { CompanyProfile } from "../model/companyModel.js";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = express.Router();
 
@@ -31,6 +35,9 @@ router.get("/profile/me", authMiddleware, async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to fetch profile", error: error.message });
   }
 });
+
+// POST /api/company/upload-document - Upload verification document to S3
+router.post("/upload-document", authMiddleware, upload.single("document"), uploadCompanyDocument);
 
 // PATCH /api/company/profile/update - Update company's updatable fields
 router.patch("/profile/update", authMiddleware, async (req, res) => {

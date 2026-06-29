@@ -20,6 +20,7 @@ import {
   XCircle,
   Briefcase,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { BACKEND_URL, PROGRAM_ID, RPC_URL } from "@/env-variables";
 import IDL from "@/idl/employment_platform.json" with { type: "json" };
@@ -95,6 +96,16 @@ export default function CompanyDetailPage() {
       );
       const data = await res.json();
       setValidationResult(data);
+      // Sync the top verification badge with the live check result
+      if (data.checks) {
+        setCompany(prev => prev ? {
+          ...prev,
+          verificationStatus: {
+            ...prev.verificationStatus,
+            email: data.checks.emailVerified,
+          },
+        } : null);
+      }
     } catch {
       toast.error("Validation check failed");
     } finally {
@@ -856,9 +867,9 @@ export default function CompanyDetailPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-600">
-                      Legal Verified
+                      Admin Approved
                     </span>
-                    {company.verificationStatus?.legal ? (
+                    {company.isVerified ? (
                       <CheckCircle className="w-5 h-5 text-green-500" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-500" />
@@ -888,6 +899,39 @@ export default function CompanyDetailPage() {
                         {validationResult.checks?.emailVerified ? "✓" : "✗"} Email verified
                       </li>
                     </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Submitted Documents */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-bold text-slate-800 mb-1">Submitted Documents</h2>
+                <p className="text-xs text-slate-500 mb-4">Optional for most jobs — required for Security category.</p>
+                {company.documents?.length > 0 ? (
+                  <div className="space-y-2">
+                    {company.documents.map((doc, i) => (
+                      <div key={i} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 capitalize">{doc.type?.replace(/_/g, " ")}</p>
+                          <p className="text-xs text-slate-500 truncate">{doc.fileName}</p>
+                          {doc.uploadedAt && (
+                            <p className="text-xs text-slate-400">{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+                          )}
+                        </div>
+                        <a
+                          href={doc.s3Url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium whitespace-nowrap ml-2"
+                        >
+                          View <FileText className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-slate-400 text-sm">
+                    No documents submitted
                   </div>
                 )}
               </div>
