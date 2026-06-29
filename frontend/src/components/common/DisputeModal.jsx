@@ -9,6 +9,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import idl from "@/idl/employment_platform.json" with { type: "json" };
+import { useTranslation } from "react-i18next";
 
 /**
  * DisputeModal
@@ -21,6 +22,7 @@ import idl from "@/idl/employment_platform.json" with { type: "json" };
  */
 const DisputeModal = ({ isOpen, onClose, job, raisedBy, onDisputeRaised }) => {
   const wallet = useWallet();
+  const { t } = useTranslation();
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -138,9 +140,9 @@ const DisputeModal = ({ isOpen, onClose, job, raisedBy, onDisputeRaised }) => {
             <div className="w-14 h-14 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
               <AlertTriangle className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-white text-center mb-1">Raise a Dispute</h2>
+            <h2 className="text-xl font-bold text-white text-center mb-1">{t("dispute.raiseTitle")}</h2>
             <p className="text-red-100 text-sm text-center">
-              Funds will be <strong>frozen in escrow</strong> until admin resolves
+              {t("dispute.fundsNote")}
             </p>
           </div>
         </div>
@@ -151,33 +153,33 @@ const DisputeModal = ({ isOpen, onClose, job, raisedBy, onDisputeRaised }) => {
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start space-x-3">
             <Shield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800">
-              <p className="font-semibold mb-1">What happens when you raise a dispute?</p>
+              <p className="font-semibold mb-1">{t("dispute.whatHappens")}</p>
               <ul className="space-y-1 text-xs">
-                <li>• Funds remain frozen in escrow</li>
-                <li>• Admin will review and resolve the dispute</li>
-                <li>• Both parties will be notified of the decision</li>
+                <li>• {t("dispute.point1")}</li>
+                <li>• {t("dispute.point2")}</li>
+                <li>• {t("dispute.point3")}</li>
               </ul>
             </div>
           </div>
 
           {/* Job info */}
           <div className="bg-gray-50 rounded-xl p-3 mb-5">
-            <p className="text-xs text-gray-500 mb-1">Job</p>
+            <p className="text-xs text-gray-500 mb-1">{t("common.job")}</p>
             <p className="font-semibold text-gray-800 text-sm">{job.title}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {raisedBy === "company" ? `Worker: ${job.workerName || job.assignedWorker?.slice(0, 8)}...` : `Company: ${job.companyName}`}
+              {raisedBy === "company" ? `${t("common.worker")}: ${job.workerName || job.assignedWorker?.slice(0, 8)}...` : `${t("common.company")}: ${job.companyName}`}
             </p>
           </div>
 
           {/* Reason */}
           <div className="mb-5">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Reason for Dispute <span className="text-red-500">*</span>
+              {t("dispute.reasonLabel")} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Describe clearly why you are raising this dispute..."
+              placeholder={t("dispute.reasonPlaceholder")}
               disabled={isSubmitting}
               maxLength={500}
               rows={4}
@@ -193,7 +195,7 @@ const DisputeModal = ({ isOpen, onClose, job, raisedBy, onDisputeRaised }) => {
               disabled={isSubmitting}
               className="flex-1 py-3 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-all disabled:opacity-50"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={handleSubmit}
@@ -203,12 +205,12 @@ const DisputeModal = ({ isOpen, onClose, job, raisedBy, onDisputeRaised }) => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Raising...</span>
+                  <span>{t("dispute.raising")}</span>
                 </>
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>Raise Dispute</span>
+                  <span>{t("job.raiseDispute")}</span>
                 </>
               )}
             </button>

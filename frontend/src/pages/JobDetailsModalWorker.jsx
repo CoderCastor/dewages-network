@@ -33,6 +33,7 @@ import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
 import toast from "react-hot-toast";
 import RatingModal from "../components/common/RatingModal";
 import ProofCaptureModal from "../components/ProofCaptureModal";
+import { useTranslation } from "react-i18next";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
@@ -46,6 +47,7 @@ const JobDetailsModalWorker = ({
   onViewCompany,
   showApplyButton = true,
 }) => {
+  const { t } = useTranslation();
   const [isApplying, setIsApplying] = useState(false);
   const [submittingOTP, setSubmittingOTP] = useState(null);
   const [otpInput, setOtpInput] = useState({ start: "", end: "" });
@@ -534,7 +536,7 @@ const JobDetailsModalWorker = ({
                   isStart ? "text-green-900" : "text-orange-900"
                 }`}
               >
-                {isStart ? "Job Started ✓" : "Job Completed ✓"}
+                {isStart ? t("job.jobInProgress") : t("job.jobCompleted")}
               </p>
               <p
                 className={`text-sm ${
@@ -542,8 +544,8 @@ const JobDetailsModalWorker = ({
                 }`}
               >
                 {isStart
-                  ? "Work is in progress"
-                  : "Waiting for payment release"}
+                  ? t("worker.inProgress")
+                  : t("job.fundsTransferPending")}
               </p>
             </div>
           </div>
@@ -571,7 +573,7 @@ const JobDetailsModalWorker = ({
                 isStart ? "text-green-900" : "text-red-900"
               }`}
             >
-              Enter {isStart ? "Start" : "End"} Job OTP
+              {isStart ? t("job.startJobOTP") : t("job.endJobOTP")}
             </p>
           </div>
           <p
@@ -579,8 +581,7 @@ const JobDetailsModalWorker = ({
               isStart ? "text-green-700" : "text-red-700"
             } mb-3`}
           >
-            Get the OTP from the employer to {isStart ? "start" : "complete"}{" "}
-            this job
+            {isStart ? t("proof.askStartOtp") : t("proof.askEndOtp")}
           </p>
           <div className="flex space-x-3">
             <input
@@ -610,7 +611,7 @@ const JobDetailsModalWorker = ({
               {submittingOTP === otpType ? (
                 <Loader2 className="w-6 h-6 animate-spin" />
               ) : (
-                "Verify"
+                t("common.verify")
               )}
             </button>
           </div>
@@ -621,7 +622,7 @@ const JobDetailsModalWorker = ({
             }}
             className="text-sm text-gray-500 hover:text-gray-700 mt-3"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       );
@@ -644,7 +645,7 @@ const JobDetailsModalWorker = ({
           } text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg`}
         >
           <Key className="w-5 h-5" />
-          <span>Enter {isStart ? "Start" : "End"} Job OTP</span>
+          <span>{isStart ? t("job.startJobOTP") : t("job.endJobOTP")}</span>
         </button>
 
         <RatingModal
@@ -681,9 +682,9 @@ const JobDetailsModalWorker = ({
                   <Briefcase className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Job Details</h2>
+                  <h2 className="text-xl font-bold text-white">{t("jobDetail.title")}</h2>
                   <p className="text-blue-100 text-sm">
-                    Posted on {formatDate(job.createdAt)}
+                    {t("jobDetail.postedOn")} {formatDate(job.createdAt)}
                   </p>
                 </div>
               </div>
@@ -724,7 +725,7 @@ const JobDetailsModalWorker = ({
                   </div>
                   <div>
                     <p className="text-sm text-green-700 font-medium">
-                      Payment
+                      {t("common.payment")}
                     </p>
                     <p className="text-2xl font-bold text-green-900">
                       {formatPayment(job.paymentAmount)} SOL
@@ -745,13 +746,13 @@ const JobDetailsModalWorker = ({
                   </div>
                   <div>
                     <p className="text-sm text-blue-700 font-medium">
-                      Duration
+                      {t("common.duration")}
                     </p>
                     <p className="text-2xl font-bold text-blue-900">
-                      {job.durationHours} hours
+                      {job.durationHours} {t("jobDetail.hours")}
                     </p>
                     <p className="text-xs text-blue-600">
-                      ≈ {Math.ceil(job.durationHours / 8)} working days
+                      ≈ {Math.ceil(job.durationHours / 8)} {t("jobDetail.workingDays")}
                     </p>
                   </div>
                 </div>
@@ -766,7 +767,7 @@ const JobDetailsModalWorker = ({
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-purple-700 font-medium mb-1">
-                      Job Location
+                      {t("jobDetail.jobLocation")}
                     </p>
                     <p className="text-base font-semibold text-purple-900">
                       {job.location.address || "N/A"}
@@ -788,7 +789,7 @@ const JobDetailsModalWorker = ({
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 mb-2">
-                      Requirements
+                      {t("jobDetail.requirements")}
                     </h4>
                     <p className="text-gray-700 leading-relaxed">
                       {job.requirements}
@@ -801,7 +802,7 @@ const JobDetailsModalWorker = ({
             {job.status === "in_progress" && (
               <div className="mb-6 space-y-3">
                 <h4 className="text-lg font-bold text-gray-900 mb-3">
-                  Job Progress
+                  {t("jobDetail.jobProgress")}
                 </h4>
 
                 {renderOTPSection("start")}
@@ -810,7 +811,7 @@ const JobDetailsModalWorker = ({
                   showOTPInput.end ? (
                     <div className="space-y-4 pt-4 border-t border-gray-100">
                       <p className="text-sm font-medium text-gray-700">
-                        {job.category === "delivery" ? "Scan QR or Enter OTP from Employer" : "Enter End OTP from Employer"}
+                        {job.category === "delivery" ? t("jobDetail.scanOrEnterOtp") : t("jobDetail.enterEndOtpFromEmployer")}
                       </p>
                       
                       {job.category === "delivery" && (
@@ -828,7 +829,7 @@ const JobDetailsModalWorker = ({
                             className="flex items-center justify-center space-x-2 w-full py-3 bg-blue-50 text-blue-700 font-semibold rounded-xl border-2 border-blue-200 border-dashed cursor-pointer hover:bg-blue-100 transition-colors"
                           >
                             <Camera className="w-5 h-5" />
-                            <span>Scan QR Code</span>
+                            <span>{t("jobDetail.scanQrCode")}</span>
                           </label>
                         </div>
                       )}
@@ -856,7 +857,7 @@ const JobDetailsModalWorker = ({
                             <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
                             <>
-                              <span>Verify & End</span>
+                              <span>{t("jobDetail.verifyAndEnd")}</span>
                               <CheckCircle2 className="w-5 h-5" />
                             </>
                           )}
@@ -869,7 +870,7 @@ const JobDetailsModalWorker = ({
                       className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg"
                     >
                       <Key className="w-5 h-5" />
-                      <span>Enter End Job OTP</span>
+                      <span>{t("jobDetail.enterEndJobOtp")}</span>
                     </button>
                   )
                 )}
@@ -879,7 +880,7 @@ const JobDetailsModalWorker = ({
                     <div className="flex items-center space-x-2">
                       <TrendingUp className="w-5 h-5 text-blue-600" />
                       <span className="text-sm font-medium text-blue-900">
-                        Work in progress - Complete to enter End OTP
+                        {t("jobDetail.workInProgressNote")}
                       </span>
                     </div>
                   </div>
@@ -892,7 +893,7 @@ const JobDetailsModalWorker = ({
                     className="w-full text-sm text-red-600 border border-red-200 rounded-lg py-2 px-3 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 mt-1"
                   >
                     <AlertCircle className="w-4 h-4" />
-                    Employer is not giving me the End OTP
+                    {t("jobDetail.employerNotGivingOtp")}
                   </button>
                 )}
 
@@ -901,11 +902,10 @@ const JobDetailsModalWorker = ({
                   <div className="border-2 border-red-300 rounded-xl p-4 bg-red-50 space-y-3">
                     <div className="flex items-center gap-2">
                       <AlertCircle className="w-5 h-5 text-red-600" />
-                      <p className="font-semibold text-red-800 text-sm">Raise Dispute — End OTP Not Received</p>
+                      <p className="font-semibold text-red-800 text-sm">{t("jobDetail.raiseDisputeNoOtp")}</p>
                     </div>
                     <p className="text-xs text-red-700">
-                      Funds will be frozen in escrow and an admin will review your case.
-                      Adding photo + GPS evidence strengthens your dispute.
+                      {t("jobDetail.fundsWillBeFrozen")} {t("jobDetail.evidenceStrengthens")}
                     </p>
 
                     <textarea
@@ -921,7 +921,7 @@ const JobDetailsModalWorker = ({
                         <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleNoOtpPhotoUpload} />
                         <div className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-medium transition-colors ${noOtpPhotoUrl ? "bg-green-100 border-green-400 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
                           {uploadingNoOtpPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                          {noOtpPhotoUrl ? "Photo ✓" : "Add Photo Evidence"}
+                          {noOtpPhotoUrl ? t("jobDetail.photoAdded") : t("jobDetail.addPhotoEvidence")}
                         </div>
                       </label>
                       <button
@@ -929,7 +929,7 @@ const JobDetailsModalWorker = ({
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-medium transition-colors ${noOtpGps ? "bg-green-100 border-green-400 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
                       >
                         <Navigation className="w-4 h-4" />
-                        {noOtpGps ? "GPS ✓" : "Capture GPS"}
+                        {noOtpGps ? t("jobDetail.gpsAdded") : t("jobDetail.captureGps")}
                       </button>
                     </div>
 
@@ -960,32 +960,32 @@ const JobDetailsModalWorker = ({
                   <div className="flex items-center space-x-3 mb-2">
                     <Shield className="w-6 h-6 text-yellow-600" />
                     <p className="text-base font-bold text-yellow-900">
-                      Dispute Period Active
+                      {t("job.disputePeriodActive")}
                     </p>
                   </div>
                   {disputeTimeRemaining && !disputeTimeRemaining.expired ? (
                     <div className="bg-white bg-opacity-60 rounded p-3">
                       <p className="text-xs text-yellow-700 mb-2">
-                        Time Remaining:
+                        {t("job.timeRemaining")}:
                       </p>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
                           <p className="text-xl font-bold text-yellow-900">
                             {disputeTimeRemaining.days}
                           </p>
-                          <p className="text-xs text-yellow-600">Days</p>
+                          <p className="text-xs text-yellow-600">{t("job.days")}</p>
                         </div>
                         <div>
                           <p className="text-xl font-bold text-yellow-900">
                             {disputeTimeRemaining.hours}
                           </p>
-                          <p className="text-xs text-yellow-600">Hours</p>
+                          <p className="text-xs text-yellow-600">{t("job.hours")}</p>
                         </div>
                         <div>
                           <p className="text-xl font-bold text-yellow-900">
                             {disputeTimeRemaining.minutes}
                           </p>
-                          <p className="text-xs text-yellow-600">Mins</p>
+                          <p className="text-xs text-yellow-600">{t("job.mins")}</p>
                         </div>
                       </div>
                     </div>
@@ -994,7 +994,7 @@ const JobDetailsModalWorker = ({
                       <div className="flex items-center space-x-2">
                         <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                         <p className="text-sm text-blue-700 font-medium">
-                          Payment will be transferred within 30 minutes
+                          {t("jobDetail.paymentTransferSoon")}
                         </p>
                       </div>
                     </div>
@@ -1008,13 +1008,13 @@ const JobDetailsModalWorker = ({
                   <Award className="w-6 h-6 text-green-600" />
                   <div>
                     <p className="text-base font-bold text-green-900">
-                      Payment Received!
+                      {t("jobDetail.paymentReceived")}
                     </p>
                     <p className="text-sm text-green-700">
                       {formatPayment(
                         job.fundTransfer.amount || job.paymentAmount
                       )}{" "}
-                      SOL transferred to your wallet
+                      {t("jobDetail.solTransferred")}
                     </p>
                   </div>
                 </div>
@@ -1032,7 +1032,7 @@ const JobDetailsModalWorker = ({
                     </div>
                     <div>
                       <p className="text-sm text-blue-700 font-medium">
-                        Posted by
+                        {t("jobDetail.postedBy")}
                       </p>
                       <p className="text-lg font-bold text-blue-900">
                         {job.companyName}
@@ -1048,7 +1048,7 @@ const JobDetailsModalWorker = ({
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium"
                   >
                     <Building size={16} />
-                    View Company
+                    {t("jobDetail.viewCompany")}
                   </button>
                 </div>
               </div>
@@ -1059,18 +1059,17 @@ const JobDetailsModalWorker = ({
                 <div className="flex items-center space-x-2 mb-3">
                   <Shield className="w-5 h-5 text-indigo-600" />
                   <h4 className="font-semibold text-indigo-900">
-                    Blockchain Security
+                    {t("jobDetail.blockchainSecurity")}
                   </h4>
                   <Info size={14} className="text-indigo-500" />
                 </div>
                 <p className="text-sm text-indigo-700 mb-3">
-                  Payment is secured in escrow smart contract. You'll receive
-                  payment automatically after job completion and verification.
+                  {t("jobDetail.escrowNote")}
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-indigo-600 font-medium">
-                      Job PDA:
+                      {t("jobDetail.jobPda")}
                     </span>
                     <div className="flex items-center space-x-2">
                       <code className="text-xs bg-indigo-100 px-2 py-1 rounded font-mono text-indigo-900">
@@ -1092,7 +1091,7 @@ const JobDetailsModalWorker = ({
                       className="flex items-center space-x-2 text-sm text-indigo-600 hover:text-indigo-700"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      <span>View on Solana Explorer</span>
+                      <span>{t("jobDetail.viewOnExplorer")}</span>
                     </a>
                   )}
                 </div>
@@ -1104,9 +1103,9 @@ const JobDetailsModalWorker = ({
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  <p className="font-medium">Ready to apply?</p>
+                  <p className="font-medium">{t("jobDetail.readyToApply")}</p>
                   <p className="text-xs">
-                    You'll be notified once the company reviews your application
+                    {t("jobDetail.applyNote")}
                   </p>
                 </div>
                 {job.hasApplied ? (
@@ -1115,7 +1114,7 @@ const JobDetailsModalWorker = ({
                     className="px-8 py-3 bg-gray-300 text-gray-600 rounded-lg font-semibold cursor-not-allowed flex items-center gap-2"
                   >
                     <CheckCircle size={18} />
-                    Applied
+                    {t("worker.applied")}
                   </button>
                 ) : (
                   <button
@@ -1126,12 +1125,12 @@ const JobDetailsModalWorker = ({
                     {isApplying ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Applying...
+                        {t("jobDetail.applying")}
                       </>
                     ) : (
                       <>
                         <Send size={18} />
-                        Apply Now
+                        {t("jobDetail.applyNow")}
                       </>
                     )}
                   </button>
