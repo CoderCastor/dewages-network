@@ -24,6 +24,9 @@ import {
   AlertCircle,
   TrendingUp,
   FileCheck,
+  Camera,
+  Navigation,
+  CheckCircle2,
 } from "lucide-react";
 import axios from "axios";
 import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "../env-variables";
@@ -58,6 +61,14 @@ const JobDetailsModalWorker = ({
   const [showBeforeProofPopup, setShowBeforeProofPopup] = useState(false);
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
+
+  // OTP-not-provided dispute state
+  const [showNoOtpDispute, setShowNoOtpDispute] = useState(false);
+  const [noOtpReason, setNoOtpReason] = useState("");
+  const [noOtpPhotoUrl, setNoOtpPhotoUrl] = useState(null);
+  const [noOtpGps, setNoOtpGps] = useState(null);
+  const [uploadingNoOtpPhoto, setUploadingNoOtpPhoto] = useState(false);
+  const [submittingNoOtpDispute, setSubmittingNoOtpDispute] = useState(false);
 
   // Calculate dispute period countdown
   useEffect(() => {
@@ -437,6 +448,66 @@ const JobDetailsModalWorker = ({
     }
   };
 
+  const handleNoOtpPhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingNoOtpPhoto(true);
+    try {
+      const token = localStorage.getItem("workerToken");
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await axios.post(`${BACKEND_URL}/upload/proof-photo`, formData, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.success) setNoOtpPhotoUrl(res.data.photoUrl);
+    } catch {
+      toast.error("Photo upload failed. You can still submit without it.");
+    } finally {
+      setUploadingNoOtpPhoto(false);
+    }
+  };
+
+  const handleNoOtpGpsCapture = () => {
+    if (!navigator.geolocation) { toast.error("GPS not available on this device"); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNoOtpGps(`${pos.coords.latitude.toFixed(6)},${pos.coords.longitude.toFixed(6)}`);
+        toast.success("GPS location captured");
+      },
+      () => toast.error("Could not get GPS. Check location permissions."),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleSubmitNoOtpDispute = async () => {
+    if (!noOtpReason.trim()) { toast.error("Please describe the situation"); return; }
+    setSubmittingNoOtpDispute(true);
+    try {
+      const token = localStorage.getItem("workerToken");
+      const res = await axios.post(
+        `${BACKEND_URL}/job/dispute/raise`,
+        {
+          jobId: job._id,
+          reason: noOtpReason.trim(),
+          raisedBy: "worker",
+          otpNotProvided: true,
+          evidencePhotoUrl: noOtpPhotoUrl || null,
+          evidenceGpsCoordinates: noOtpGps || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        toast.success("Dispute raised. Funds frozen until admin resolves.");
+        setShowNoOtpDispute(false);
+        setTimeout(() => onClose(), 1500);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to raise dispute");
+    } finally {
+      setSubmittingNoOtpDispute(false);
+    }
+  };
+
   const renderOTPSection = (otpType) => {
     const isStart = otpType === "start";
     const isUsed = isStart ? job.startJobOTP?.isUsed : job.endJobOTP?.isUsed;
@@ -810,6 +881,73 @@ const JobDetailsModalWorker = ({
                       <span className="text-sm font-medium text-blue-900">
                         Work in progress - Complete to enter End OTP
                       </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* OTP Not Provided — dispute option */}
+                {job.startJobOTP?.isUsed && !job.endJobOTP?.isUsed && !showNoOtpDispute && (
+                  <button
+                    onClick={() => setShowNoOtpDispute(true)}
+                    className="w-full text-sm text-red-600 border border-red-200 rounded-lg py-2 px-3 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 mt-1"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    Employer is not giving me the End OTP
+                  </button>
+                )}
+
+                {/* No-OTP Dispute Form */}
+                {showNoOtpDispute && (
+                  <div className="border-2 border-red-300 rounded-xl p-4 bg-red-50 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                      <p className="font-semibold text-red-800 text-sm">Raise Dispute — End OTP Not Received</p>
+                    </div>
+                    <p className="text-xs text-red-700">
+                      Funds will be frozen in escrow and an admin will review your case.
+                      Adding photo + GPS evidence strengthens your dispute.
+                    </p>
+
+                    <textarea
+                      rows={3}
+                      value={noOtpReason}
+                      onChange={e => setNoOtpReason(e.target.value)}
+                      placeholder="Describe the situation: e.g. I completed the painting work but the employer is refusing to give me the end OTP..."
+                      className="w-full text-sm border border-red-300 rounded-lg p-3 focus:ring-2 focus:ring-red-400 resize-none"
+                    />
+
+                    <div className="flex gap-2">
+                      <label className="flex-1 cursor-pointer">
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleNoOtpPhotoUpload} />
+                        <div className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-medium transition-colors ${noOtpPhotoUrl ? "bg-green-100 border-green-400 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
+                          {uploadingNoOtpPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                          {noOtpPhotoUrl ? "Photo ✓" : "Add Photo Evidence"}
+                        </div>
+                      </label>
+                      <button
+                        onClick={handleNoOtpGpsCapture}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-medium transition-colors ${noOtpGps ? "bg-green-100 border-green-400 text-green-700" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+                      >
+                        <Navigation className="w-4 h-4" />
+                        {noOtpGps ? "GPS ✓" : "Capture GPS"}
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => { setShowNoOtpDispute(false); setNoOtpReason(""); setNoOtpPhotoUrl(null); setNoOtpGps(null); }}
+                        className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSubmitNoOtpDispute}
+                        disabled={submittingNoOtpDispute || !noOtpReason.trim()}
+                        className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {submittingNoOtpDispute ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
+                        Raise Dispute
+                      </button>
                     </div>
                   </div>
                 )}

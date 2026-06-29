@@ -159,9 +159,12 @@ const jobSchema = new mongoose.Schema(
       disputePDA: { type: String },
       txSignature: { type: String },
       reason: { type: String },
-      raisedBy: { type: String, enum: ["company", "worker"] }, // who raised it
-      raisedByWallet: { type: String }, // wallet address of who raised it
+      raisedBy: { type: String, enum: ["company", "worker"] },
+      raisedByWallet: { type: String },
+      otpNotProvided: { type: Boolean, default: false }, // true when employer refused to give End OTP
       evidenceS3Urls: [{ type: String }],
+      evidencePhotoUrl: { type: String, default: null }, // photo uploaded by worker as evidence
+      evidenceGpsCoordinates: { type: String, default: null }, // GPS coords from worker's phone
       status: {
         type: String,
         enum: [

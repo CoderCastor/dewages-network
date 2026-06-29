@@ -178,10 +178,39 @@ export default function DisputePanel({ disputes, onResolved }) {
                         : `Company (${c.companyName || job.companyName})`}
                     </p>
                   </div>
+                  {dispute.otpNotProvided && (
+                    <div className="flex items-center gap-1.5 mb-2 bg-orange-100 border border-orange-300 rounded px-2 py-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                      <span className="text-xs font-semibold text-orange-800">
+                        ⚠️ Employer did NOT give End OTP — worker disputes work completion
+                      </span>
+                    </div>
+                  )}
                   <p className="text-sm text-slate-700"><span className="font-medium">Reason:</span> {dispute.reason || "—"}</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Raised on: {dispute.createdAt ? new Date(dispute.createdAt).toLocaleString() : "—"}
                   </p>
+                  {(dispute.evidencePhotoUrl || dispute.evidenceGpsCoordinates) && (
+                    <div className="mt-2 pt-2 border-t border-red-200 space-y-1">
+                      <p className="text-xs font-semibold text-slate-600">Worker Evidence:</p>
+                      {dispute.evidencePhotoUrl && (
+                        <a href={dispute.evidencePhotoUrl} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                          📷 View Evidence Photo
+                        </a>
+                      )}
+                      {dispute.evidenceGpsCoordinates && (
+                        <p className="text-xs text-slate-500">
+                          📍 GPS: {dispute.evidenceGpsCoordinates}
+                          <a
+                            href={`https://maps.google.com/?q=${dispute.evidenceGpsCoordinates}`}
+                            target="_blank" rel="noreferrer"
+                            className="ml-1 text-blue-600 hover:underline"
+                          >(View Map)</a>
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick ratings */}
