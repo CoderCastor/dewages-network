@@ -190,9 +190,10 @@ const signupCompany = async (req, res) => {
       
       // Update existing inactive company
       const emailVerified = body.emailVerified === true;
+      const { verificationStatus: _vs, ...companyData } = parsedBody.data;
       const updatedCompany = await CompanyProfile.updateOne(
         { walletAddress: parsedBody.data.walletAddress },
-        { $set: { ...parsedBody.data, isActive: true, "verificationStatus.email": emailVerified } }
+        { $set: { ...companyData, isActive: true, "verificationStatus.email": emailVerified } }
       );
 
       console.log(parsedBody.data)

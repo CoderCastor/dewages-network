@@ -142,9 +142,10 @@ const signupUser = async (req, res) => {
     }
 
     const emailVerified = body.emailVerified === true;
+    const { verificationStatus: _vs, ...profileData } = parsedBody.data;
     const createdWorker = await WorkerProfile.updateOne(
       { walletAddress: parsedBody.data.walletAddress },
-      { $set: { ...parsedBody.data, "verificationStatus.email": emailVerified } }
+      { $set: { ...profileData, "verificationStatus.email": emailVerified } }
     );
     console.log("Worker profile created successfully:", createdWorker._id);
 
