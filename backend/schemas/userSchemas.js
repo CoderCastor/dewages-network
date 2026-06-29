@@ -7,8 +7,14 @@ const mongoObjectIdRegex = /^[0-9a-fA-F]{24}$/;
 // Enums
 const JobCategoryEnum = z.enum([
   "construction",
+  "plumbing",
+  "electrical",
+  "carpentry",
+  "painting",
   "delivery",
+  "driving",
   "domestic_help",
+  "cooking",
   "event_staffing",
   "agriculture",
   "cleaning",

@@ -26,17 +26,9 @@ import toast from "react-hot-toast";
 import {useNavigate} from "react-router"
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher";
+import { JOB_CATEGORIES as INDIVIDUAL_JOB_CATEGORIES } from "@/constants/worker";
 
 const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
-
-// Only individual/skilled jobs (no group hiring)
-const INDIVIDUAL_JOB_CATEGORIES = [
-//   { value: "construction", label: "Construction" },
-  { value: "cleaning", label: "Cleaning" },
-  { value: "security", label: "Security" },
-  { value: "delivery", label: "Delivery" },
-  { value: "domestic_help", label: "Domestic Help" },
-];
 
 const INDIAN_STATES = [
   "Maharashtra",

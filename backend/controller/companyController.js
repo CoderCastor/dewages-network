@@ -28,8 +28,14 @@ const CompanySignupSchema = z.object({
   interestedCategories: z.array(
     z.enum([
       "construction",
+      "plumbing",
+      "electrical",
+      "carpentry",
+      "painting",
       "delivery",
+      "driving",
       "domestic_help",
+      "cooking",
       "event_staffing",
       "agriculture",
       "cleaning",
