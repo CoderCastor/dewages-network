@@ -6,10 +6,12 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 const storage = multer.memoryStorage();
 export const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max for mobile camera photos
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max for 4K/RAW mobile camera photos
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) return cb(null, true);
-    cb(new Error("Only image files are allowed"));
+    // Mobile direct camera captures sometimes send generic or weird mimetypes
+    // Allow everything, we'll rely on extension parsing in S3 upload.
+    console.log("[Multer] Receiving file from mobile:", file.originalname, file.mimetype, file.size);
+    cb(null, true);
   },
 });
 

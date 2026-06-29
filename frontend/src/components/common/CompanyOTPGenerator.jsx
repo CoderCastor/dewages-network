@@ -5,12 +5,21 @@ import axios from "axios";
 import { BACKEND_URL } from "../../env-variables";
 import toast from "react-hot-toast";
 import RatingModal from "./RatingModal";
+import { QRCodeSVG } from "qrcode.react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { PROGRAM_ID } from "../../env-variables";
+import idl from "../../idl/employment_platform.json";
 
 const CompanyOTPGenerator = ({ job, onOTPGenerated }) => {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [ratingDone, setRatingDone] = useState(!!job.workerRating);
   const [localOTP, setLocalOTP] = useState(null);
+  
+  const wallet = useWallet();
+  const { connection } = useConnection();
 
   // Stop click from bubbling to parent card (which opens job details modal)
   const stopProp = (e) => e.stopPropagation();
@@ -25,21 +34,56 @@ const CompanyOTPGenerator = ({ job, onOTPGenerated }) => {
   };
 
   const handleRatingSubmit = async (rating, review) => {
-    const token = localStorage.getItem("token");
-    const response = await axios.post(
-      `${BACKEND_URL}/job/rating/company`,
-      { jobId: job._id, rating, review },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    try {
+      if (wallet.connected && job.assignedWorker) {
+        toast.loading("Submitting rating to blockchain...", { id: "rating" });
+        const provider = new AnchorProvider(connection, wallet, {
+          preflightCommitment: "processed",
+        });
+        const program = new Program(idl, PROGRAM_ID, provider);
+        
+        const ratingKeypair = Keypair.generate();
+        const [targetProfilePDA] = PublicKey.findProgramAddressSync(
+          [Buffer.from("user_profile"), new PublicKey(job.assignedWorker).toBuffer()],
+          new PublicKey(PROGRAM_ID)
+        );
+        
+        await program.methods
+          .rateUser(rating, review || "")
+          .accounts({
+            userRating: ratingKeypair.publicKey,
+            job: new PublicKey(job.jobPDA),
+            targetProfile: targetProfilePDA,
+            targetUser: new PublicKey(job.assignedWorker),
+            rater: wallet.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([ratingKeypair])
+          .rpc();
+          
+        toast.success("Rating recorded on blockchain!", { id: "rating" });
+      }
 
-    if (!response.data.success) {
-      throw new Error(response.data.message || "Failed to submit rating");
+      // Also save to backend for quick display
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${BACKEND_URL}/job/rating/company`,
+        { jobId: job._id, rating, review },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to submit rating");
+      }
+
+      toast.success("Rating saved locally!");
+      setRatingDone(true);
+      setShowRatingModal(false);
+      await generateOTP();
+    } catch (err) {
+      console.error("On-chain rating error:", err);
+      toast.error("Failed to submit rating: " + err.message, { id: "rating" });
     }
-
-    toast.success("Rating submitted!");
-    setRatingDone(true);
-    setShowRatingModal(false);
-    await generateOTP();
   };
 
   const generateOTP = async () => {
@@ -79,25 +123,35 @@ const CompanyOTPGenerator = ({ job, onOTPGenerated }) => {
   const otpUsed = job.endJobOTP?.isUsed;
 
   if (displayOTP && !otpUsed) {
+    const isDelivery = job.category === "delivery";
+    
     return (
       <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4" onClick={stopProp}>
-        <p className="text-sm font-medium text-orange-700 mb-2">End Job OTP</p>
-        <div className="flex items-center justify-between">
-          <p className="text-3xl font-bold text-orange-900 tracking-wider font-mono">
-            {displayOTP}
-          </p>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={(e) => copyOTP(e, displayOTP)}
-              className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
-              title="Copy OTP"
-            >
-              <Copy className="w-5 h-5 text-orange-600" />
-            </button>
-            <Key className="w-6 h-6 text-orange-400" />
+        <p className="text-sm font-medium text-orange-700 mb-2">End Job {isDelivery ? "QR Code" : "OTP"}</p>
+        
+        {isDelivery ? (
+          <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg border border-orange-200">
+            <QRCodeSVG value={displayOTP} size={150} level="M" />
+            <p className="mt-3 text-sm text-gray-500 font-mono">Or use code: <span className="font-bold text-orange-700">{displayOTP}</span></p>
           </div>
-        </div>
-        <p className="text-xs text-orange-600 mt-2">Share this OTP with the worker to complete the job</p>
+        ) : (
+          <div className="flex items-center justify-between">
+            <p className="text-3xl font-bold text-orange-900 tracking-wider font-mono">
+              {displayOTP}
+            </p>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={(e) => copyOTP(e, displayOTP)}
+                className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
+                title="Copy OTP"
+              >
+                <Copy className="w-5 h-5 text-orange-600" />
+              </button>
+              <Key className="w-6 h-6 text-orange-400" />
+            </div>
+          </div>
+        )}
+        <p className="text-xs text-orange-600 mt-2">Share this {isDelivery ? "QR code or OTP" : "OTP"} with the worker to complete the job</p>
       </div>
     );
   }

@@ -2,7 +2,9 @@ import { Router } from "express";
 import {
   signupUser,
   verifyWorkerWallet,
+  verifyPAN,
 } from "../controller/workerController.js";
+import { sendOTP, verifyOTP } from "../controller/otpController.js";
 import { WorkerProfile } from "../model/workerModel.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -10,6 +12,11 @@ const workerRouter = Router();
 
 workerRouter.post("/signup", signupUser);
 workerRouter.post("/walletverify", verifyWorkerWallet);
+workerRouter.post("/verify-pan", verifyPAN);
+
+// Email OTP Verification
+workerRouter.post("/send-otp", sendOTP);
+workerRouter.post("/verify-otp", verifyOTP);
 
 // GET /api/worker/profile/me - Get current worker's own profile
 workerRouter.get("/profile/me", authMiddleware, async (req, res) => {

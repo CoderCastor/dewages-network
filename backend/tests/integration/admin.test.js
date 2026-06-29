@@ -127,10 +127,8 @@ describe("Admin Login", () => {
 
     adminLogin(req, res);
 
-    // Non-admin wallet is rejected before nonce check in most implementations
-    expect(res.status).toHaveBeenCalledWith(
-      expect.toBeOneOf ? expect.toBeOneOf([401, 403]) : expect.anything()
-    );
+    // Non-admin wallet is rejected before nonce check with 403
+    expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: false })
     );
