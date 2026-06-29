@@ -39,7 +39,12 @@ import {
   TrendingUp,
   Target,
   Zap,
-  Globe
+  Globe,
+  Wrench,
+  Hammer,
+  Car,
+  UtensilsCrossed,
+  Paintbrush
 } from 'lucide-react';
 import { ClipLoader } from 'react-spinners';
 
@@ -218,8 +223,14 @@ const CompanyJobPostingPage = () => {
 
   const jobCategoryIcons = {
     construction: Briefcase,
+    plumbing: Wrench,
+    electrical: Zap,
+    carpentry: Hammer,
+    painting: Paintbrush,
     delivery: Truck,
+    driving: Car,
     domestic_help: Home,
+    cooking: UtensilsCrossed,
     event_staffing: Users,
     agriculture: Leaf,
     cleaning: Sparkles,
@@ -230,8 +241,14 @@ const CompanyJobPostingPage = () => {
 
   const jobCategories = [
     { value: 'construction', label: 'Construction' },
+    { value: 'plumbing', label: 'Plumbing' },
+    { value: 'electrical', label: 'Electrical' },
+    { value: 'carpentry', label: 'Carpentry' },
+    { value: 'painting', label: 'Painting' },
     { value: 'delivery', label: 'Delivery & Logistics' },
+    { value: 'driving', label: 'Driving / Transport' },
     { value: 'domestic_help', label: 'Domestic Help' },
+    { value: 'cooking', label: 'Cooking / Kitchen' },
     { value: 'event_staffing', label: 'Event Staffing' },
     { value: 'agriculture', label: 'Agriculture' },
     { value: 'cleaning', label: 'Cleaning Services' },

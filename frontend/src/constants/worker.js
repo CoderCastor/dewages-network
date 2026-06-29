@@ -1,7 +1,13 @@
 export const JOB_CATEGORIES = [
   { value: "construction", label: "Construction" },
+  { value: "plumbing", label: "Plumbing" },
+  { value: "electrical", label: "Electrical" },
+  { value: "carpentry", label: "Carpentry" },
+  { value: "painting", label: "Painting" },
   { value: "delivery", label: "Delivery" },
+  { value: "driving", label: "Driving / Transport" },
   { value: "domestic_help", label: "Domestic Help" },
+  { value: "cooking", label: "Cooking / Kitchen" },
   { value: "event_staffing", label: "Event Staffing" },
   { value: "agriculture", label: "Agriculture" },
   { value: "cleaning", label: "Cleaning" },
