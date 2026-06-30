@@ -456,7 +456,7 @@ const JobDetailsModalWorker = ({
     if (!file) return;
     setUploadingNoOtpPhoto(true);
     try {
-      const token = localStorage.getItem("workerToken");
+      const token = localStorage.getItem("token");
       const formData = new FormData();
       formData.append("photo", file);
       const res = await axios.post(`${BACKEND_URL}/upload/proof-photo`, formData, {
@@ -486,7 +486,7 @@ const JobDetailsModalWorker = ({
     if (!noOtpReason.trim()) { toast.error("Please describe the situation"); return; }
     setSubmittingNoOtpDispute(true);
     try {
-      const token = localStorage.getItem("workerToken");
+      const token = localStorage.getItem("token");
       const res = await axios.post(
         `${BACKEND_URL}/job/dispute/raise`,
         {
