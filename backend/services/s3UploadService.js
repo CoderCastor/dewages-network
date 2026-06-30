@@ -24,7 +24,7 @@ const BUCKET = process.env.S3_BUCKET_NAME;
 export async function uploadWorkerAvatar(fileBuffer, mimeType, walletAddress) {
   const bucket = process.env.S3_BUCKET_NAME;
   const region = process.env.AWS_REGION || "ap-south-1";
-  const baseUrl = process.env.S3_BUCKET_URL || `https://${bucket}.s3.${region}.amazonaws.com`;
+  const baseUrl = (process.env.S3_BUCKET_URL || `https://${bucket}.s3.${region}.amazonaws.com`).replace(/\/$/, "");
   const ext = mimeType?.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
   const key = `worker-avatars/${walletAddress}.${ext}`;
   await s3.send(new PutObjectCommand({
