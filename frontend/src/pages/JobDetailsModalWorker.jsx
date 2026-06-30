@@ -475,7 +475,8 @@ const JobDetailsModalWorker = ({
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
-      formData.append("photo", file);
+      formData.append("file", file);
+      formData.append("jobId", job._id);
       const res = await axios.post(`${BACKEND_URL}/upload/proof-photo`, formData, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
@@ -821,7 +822,7 @@ const JobDetailsModalWorker = ({
 
                 {renderOTPSection("start")}
 
-                {job.startJobOTP?.isUsed && (
+                {(job.startJobOTP?.isUsed || job.category === "delivery") && (
                   showOTPInput.end ? (
                     <div className="space-y-4 pt-4 border-t border-gray-100">
                       <p className="text-sm font-medium text-gray-700">
@@ -834,7 +835,7 @@ const JobDetailsModalWorker = ({
                             type="file"
                             accept="image/*"
                             capture="environment"
-                            className="hidden"
+                            className="sr-only"
                             id="qr-upload"
                             onChange={handleQRScan}
                           />
@@ -900,8 +901,8 @@ const JobDetailsModalWorker = ({
                   </div>
                 )}
 
-                {/* OTP Not Provided — dispute option */}
-                {job.startJobOTP?.isUsed && !job.endJobOTP?.isUsed && !showNoOtpDispute && (
+                {/* OTP Not Provided — dispute option (delivery: show even before start OTP; others: only after start OTP) */}
+                {(job.category === "delivery" || job.startJobOTP?.isUsed) && !job.endJobOTP?.isUsed && !showNoOtpDispute && (
                   <button
                     onClick={() => setShowNoOtpDispute(true)}
                     className="w-full font-semibold text-sm text-white bg-red-600 hover:bg-red-700 rounded-xl py-3 px-4 transition-colors flex items-center justify-center gap-2 mt-2 shadow-md"
