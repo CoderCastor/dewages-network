@@ -282,7 +282,12 @@ const WorkerProfilePage = () => {
                 />
                 <div className="w-20 h-20 rounded-2xl shadow-lg overflow-hidden bg-white bg-opacity-20 flex items-center justify-center">
                   {profile?.avatar ? (
-                    <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                    <img
+                      src={profile.avatar}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                      onError={() => setProfile((prev) => ({ ...prev, avatar: null }))}
+                    />
                   ) : (
                     <span className="text-4xl font-bold text-white">{getInitial(profile?.name)}</span>
                   )}
