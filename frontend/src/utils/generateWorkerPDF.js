@@ -192,18 +192,18 @@ export async function generateWorkerPDF(profile, completedJobs = []) {
   cornerAccent(doc, MR + 2, 29, 7, true);
   y = 32;
 
-  // Certificate title strip
+  // Certificate title strip — tall enough to contain both title + cert ID
+  const cid = certId(profile?.walletAddress);
   doc.setFillColor(...GRAY_PALE);
-  doc.rect(ML, y, BODY, 10, "F");
+  doc.rect(ML, y, BODY, 15, "F");
   doc.setDrawColor(...GRAY_MID);
   doc.setLineWidth(0.2);
-  doc.rect(ML, y, BODY, 10, "S");
+  doc.rect(ML, y, BODY, 15, "S");
   setFont(doc, 10, "bold", PURPLE_MID);
-  doc.text("CERTIFICATE OF WORK HISTORY", W / 2, y + 6.5, { align: "center" });
-  const cid = certId(profile?.walletAddress);
-  setFont(doc, 6.5, "normal", GRAY);
-  doc.text(`Certificate ID: ${cid}`, W / 2, y + 10.5, { align: "center" });
-  y += 15;
+  doc.text("CERTIFICATE OF WORK HISTORY", W / 2, y + 7, { align: "center" });
+  setFont(doc, 6, "normal", GRAY);
+  doc.text(`Certificate ID: ${cid}`, W / 2, y + 13, { align: "center" });
+  y += 20;
 
   // ─── Worker profile block ─────────────────────────────────────────────────
   y = sectionTitle(doc, "WORKER PROFILE", y, W);
@@ -223,20 +223,34 @@ export async function generateWorkerPDF(profile, completedJobs = []) {
     doc.text((profile?.name?.[0] || "W").toUpperCase(), ML + aSize / 2, y + aSize / 2 + 5, { align: "center" });
   }
 
-  // Name + details (center column)
+  // Name + details (center column) — proper two-column key/value layout
   const nameX = ML + aSize + 6;
-  const detailW = W - nameX - 50;
-  setFont(doc, 16, "bold", DARK);
-  doc.text(profile?.name || "Worker", nameX, y + 8);
-  setFont(doc, 7, "normal", GRAY);
-  doc.text(`Wallet:      ${shortAddr(profile?.walletAddress)}`, nameX, y + 14);
-  setFont(doc, 7, "normal", DARK);
-  doc.text(`Experience:  ${expLabel(profile?.experienceLevel)}`, nameX, y + 19.5);
+  const keyX  = nameX;
+  const valX  = nameX + 22;   // fixed column: labels 22 mm wide
+  const lineH = 5.2;
+
+  setFont(doc, 15, "bold", DARK);
+  doc.text(profile?.name || "Worker", nameX, y + 7);
+
   const city  = profile?.location?.city || "";
   const state = profile?.location?.state || "";
   const loc   = [city, state].filter(Boolean).join(", ") || "—";
-  doc.text(`Location:    ${loc}`, nameX, y + 25);
-  if (profile?.phone) doc.text(`Phone:       ${profile.phone}`, nameX, y + 30);
+
+  const profileRows = [
+    ["Wallet",     shortAddr(profile?.walletAddress)],
+    ["Experience", expLabel(profile?.experienceLevel)],
+    ["Location",   loc],
+    ...(profile?.phone ? [["Phone", profile.phone]] : []),
+  ];
+
+  let iy = y + 13;
+  for (const [k, v] of profileRows) {
+    setFont(doc, 6, "bold", GRAY);
+    doc.text(k, keyX, iy);
+    setFont(doc, 6.5, "normal", DARK);
+    doc.text(v, valX, iy);
+    iy += lineH;
+  }
 
   // Blockchain seal (right column)
   blockchainSeal(doc, W - 8, y - 4, profile?.walletAddress);
@@ -267,38 +281,36 @@ export async function generateWorkerPDF(profile, completedJobs = []) {
   // ─── Skills ───────────────────────────────────────────────────────────────
   const skills = (profile?.skills || []).slice(0, 15);
   if (skills.length > 0) {
-    needRoom(20);
-    setFont(doc, 7, "bold", GRAY);
-    doc.text("SKILLS", ML, y + 4);
-    let sx = ML + 16, sy = y;
+    needRoom(22);
+    y = sectionTitle(doc, "SKILLS", y, W);
+    let sx = ML, sy = y;
     for (const skill of skills) {
-      setFont(doc, 6.5, "normal", DARK);
-      const tw = doc.getTextWidth(skill) + 6;
-      if (sx + tw > MR - 4) { sx = ML + 16; sy += 8; }
+      const tw = doc.getTextWidth(skill) + 8;
+      if (sx + tw > MR - 2) { sx = ML; sy += 9; }
       doc.setFillColor(...PURPLE_PALE);
-      doc.roundedRect(sx, sy, tw, 6.5, 1, 1, "F");
+      doc.roundedRect(sx, sy, tw, 7, 1.5, 1.5, "F");
       doc.setDrawColor(200, 185, 255);
       doc.setLineWidth(0.2);
-      doc.roundedRect(sx, sy, tw, 6.5, 1, 1, "S");
+      doc.roundedRect(sx, sy, tw, 7, 1.5, 1.5, "S");
       setFont(doc, 6.5, "normal", PURPLE_MID);
-      doc.text(skill, sx + tw / 2, sy + 4.5, { align: "center" });
-      sx += tw + 3;
+      doc.text(skill, sx + tw / 2, sy + 4.8, { align: "center" });
+      sx += tw + 4;
     }
-    y = sy + 12;
+    y = sy + 13;
   }
 
   // ─── Bio ──────────────────────────────────────────────────────────────────
   if (profile?.bio) {
     needRoom(20);
     doc.setFillColor(...GRAY_PALE);
-    const bioLines = doc.splitTextToSize(`"${profile.bio}"`, BODY - 6);
-    const bioH = bioLines.length * 4.5 + 6;
+    const bioLines = doc.splitTextToSize(`"${profile.bio}"`, BODY - 14);
+    const bioH = bioLines.length * 5 + 10;
     doc.roundedRect(ML, y, BODY, bioH, 1.5, 1.5, "F");
     doc.setDrawColor(200, 185, 255);
     doc.setLineWidth(0.2);
     doc.roundedRect(ML, y, BODY, bioH, 1.5, 1.5, "S");
     setFont(doc, 7, "italic", GRAY);
-    doc.text(bioLines, ML + 3, y + 5);
+    doc.text(bioLines, ML + 7, y + 7);
     y += bioH + 6;
   }
 
