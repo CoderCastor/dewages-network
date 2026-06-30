@@ -64,6 +64,23 @@ const JobDetailsModalWorker = ({
   const [proofData, setProofData] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
 
+  // QR scan handler for delivery jobs
+  const handleQRScan = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { Html5Qrcode } = await import("html5-qrcode");
+      const scanner = new Html5Qrcode("qr-scan-temp-worker");
+      const decoded = await scanner.scanFile(file, false);
+      setOtpInput((prev) => ({ ...prev, end: decoded.trim() }));
+      toast.success("QR scanned! Tap Verify to complete.");
+    } catch {
+      toast.error("Could not read QR code — enter the OTP manually below.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   // OTP-not-provided dispute state
   const [showNoOtpDispute, setShowNoOtpDispute] = useState(false);
   const [noOtpReason, setNoOtpReason] = useState("");
