@@ -411,7 +411,7 @@ const WorkerSignupForm = () => {
   const handlePanVerify = async () => {
     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
-    if (!panData.pan || !panData.name_as_per_pan || !panData.date_of_birth) {
+    if (!panData.pan || !formData.name || !panData.date_of_birth) {
       toast.error("Please fill in all PAN details");
       return;
     }
@@ -432,7 +432,7 @@ const WorkerSignupForm = () => {
     try {
       const res = await axios.post(`${BACKEND_URL}/worker/verify-pan`, {
         pan: panData.pan.toUpperCase(),
-        name_as_per_pan: panData.name_as_per_pan,
+        name_as_per_pan: formData.name,
         date_of_birth: formattedDob,
         walletAddress: WalletAddress,
       });
@@ -760,6 +760,10 @@ const WorkerSignupForm = () => {
                   placeholder="Rajesh Kumar"
                   error={!!errors.name}
                 />
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircle size={12} />
+                  Enter your name exactly as it appears on your PAN card — this will be used for KYC verification.
+                </p>
               </FormField>
 
               <FormField label="Phone Number" required error={errors.phone}>
@@ -1375,7 +1379,7 @@ const WorkerSignupForm = () => {
                 <h3 className="text-xl font-bold text-green-700">PAN Verified Successfully!</h3>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 w-full max-w-sm space-y-1 text-sm text-gray-700">
                   <p><span className="font-semibold">PAN Number:</span> {panData.pan.toUpperCase()}</p>
-                  <p><span className="font-semibold">Name:</span> {panData.name_as_per_pan}</p>
+                  <p><span className="font-semibold">Name:</span> {formData.name}</p>
                   <p><span className="font-semibold">Date of Birth:</span> {panData.date_of_birth}</p>
                 </div>
                 <p className="text-sm text-gray-500">
@@ -1413,22 +1417,17 @@ const WorkerSignupForm = () => {
                   <p className="text-xs text-gray-400 mt-1">Format: 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)</p>
                 </FormField>
 
-                <FormField label="Name as per PAN" required>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      value={panData.name_as_per_pan}
-                      onChange={(e) =>
-                        setPanData((prev) => ({
-                          ...prev,
-                          name_as_per_pan: e.target.value,
-                        }))
-                      }
-                      placeholder="Rajesh Kumar"
-                      className="pl-10"
-                    />
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Name as per PAN <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-sm text-gray-900">{formData.name || <span className="text-gray-400 italic">Go back to step 1 and enter your name</span>}</span>
+                    <CheckCircle size={14} className="text-green-500 ml-auto flex-shrink-0" />
                   </div>
-                </FormField>
+                  <p className="text-xs text-gray-500">Carried forward from your Basic Information step.</p>
+                </div>
 
                 <FormField label="Date of Birth" required>
                   <Input

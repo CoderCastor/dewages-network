@@ -292,7 +292,7 @@ const WorkerProfilePage = () => {
                     <span className="text-4xl font-bold text-white">{getInitial(profile?.name)}</span>
                   )}
                 </div>
-                <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                <div className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                   {avatarUploading ? (
                     <Loader2 className="w-6 h-6 text-white animate-spin opacity-0 group-hover:opacity-100" />
                   ) : (
