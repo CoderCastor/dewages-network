@@ -39,6 +39,19 @@ export async function uploadWorkerAvatar(fileBuffer, mimeType, walletAddress) {
   return `${baseUrl}/${key}?t=${Date.now()}`;
 }
 
+export async function uploadCompanyLogo(fileBuffer, mimeType, walletAddress) {
+  const bucket = process.env.S3_BUCKET_NAME;
+  const region = process.env.AWS_REGION || "ap-south-1";
+  const baseUrl = (process.env.S3_BUCKET_URL || `https://${bucket}.s3.${region}.amazonaws.com`).replace(/\/$/, "");
+  const ext = mimeType?.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+  const key = `company-logos/${walletAddress}.${ext}`;
+  await s3.send(new PutObjectCommand({
+    Bucket: bucket, Key: key, Body: fileBuffer,
+    ContentType: mimeType || "image/jpeg", ACL: "public-read",
+  }));
+  return `${baseUrl}/${key}?t=${Date.now()}`;
+}
+
 export async function uploadCompanyDocument(fileBuffer, mimeType, walletAddress, originalName) {
   const bucket = process.env.S3_BUCKET_NAME;
   const region = process.env.AWS_REGION || "ap-south-1";
