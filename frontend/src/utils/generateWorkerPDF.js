@@ -461,10 +461,10 @@ export async function generateWorkerPDF(profile, completedJobs = []) {
       doc.text(fmtDate(job.completedAt), MR, y + 1, { align: "right" });
       y += 6;
 
+      const TW = 55, TH = 44;
       let tx2 = ML;
       for (const { label, url } of pairs) {
         const b64 = await fetchB64(url);
-        const TW = 55, TH = 44;
         doc.setFillColor(...GRAY_PALE);
         doc.roundedRect(tx2, y, TW, TH + 8, 2, 2, "F");
         doc.setDrawColor(...GRAY_MID);
