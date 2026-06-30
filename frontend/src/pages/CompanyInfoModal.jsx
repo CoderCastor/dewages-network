@@ -177,7 +177,11 @@ const CompanyInfoModal = ({ isOpen, onClose, company }) => {
                     <div className="flex-1">
                       <p className="text-xs text-gray-500">Location</p>
                       <p className="text-sm font-medium text-gray-900">
-                        {company.location}
+                        {typeof company.location === "string"
+                          ? company.location
+                          : [company.location.address, company.location.city, company.location.state]
+                              .filter(Boolean)
+                              .join(", ") || "—"}
                       </p>
                     </div>
                   </div>
