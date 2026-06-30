@@ -81,12 +81,19 @@ export const raiseDispute = async (req, res) => {
       } catch (chainErr) {
         console.error("[RaiseDispute] ❌ createDisputeOnChain failed:", chainErr.message);
         if (chainErr.logs) chainErr.logs.forEach(l => console.error("   >", l));
-        return res.status(502).json({
-          success: false,
-          message: "Failed to create dispute on-chain. Dispute not raised.",
-          error: chainErr.message,
-          logs: chainErr.logs || [],
-        });
+        if (!isOtpNotProvided) {
+          // For regular disputes, blockchain is required
+          return res.status(502).json({
+            success: false,
+            message: "Failed to create dispute on-chain. Dispute not raised.",
+            error: chainErr.message,
+            logs: chainErr.logs || [],
+          });
+        }
+        // For OTP-not-provided disputes, save to DB even if blockchain unavailable
+        console.warn("[RaiseDispute] OTP-not-provided dispute saved to DB without on-chain record (chain unavailable)");
+        disputePDA  = null;
+        txSignature = null;
       }
     }
 
