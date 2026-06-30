@@ -36,6 +36,23 @@ router.get("/profile/me", authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/company/profile/logo — upload company logo
+router.post("/profile/logo", authMiddleware, upload.single("logo"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+    const { uploadCompanyLogo } = await import("../services/s3UploadService.js");
+    const url = await uploadCompanyLogo(req.file.buffer, req.file.mimetype, req.user.walletAddress);
+    await CompanyProfile.findOneAndUpdate(
+      { walletAddress: req.user.walletAddress },
+      { $set: { logo: url } }
+    );
+    return res.status(200).json({ success: true, url });
+  } catch (err) {
+    console.error("Logo upload error:", err);
+    return res.status(500).json({ success: false, message: "Failed to upload logo", error: err.message });
+  }
+});
+
 // POST /api/company/upload-document - Upload verification document to S3
 router.post("/upload-document", authMiddleware, upload.single("document"), uploadCompanyDocument);
 

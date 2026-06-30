@@ -15,6 +15,9 @@ const companyProfileSchema = new mongoose.Schema({
   registrationNumber: { type: String, trim: true },
   taxId: { type: String, trim: true },
   
+  // Logo
+  logo: { type: String },
+
   // Contact Info
   phone: { type: String, required: false },
   email: { type: String, lowercase: true },

@@ -25,6 +25,7 @@ import {
   FileText,
   Upload,
   ExternalLink,
+  Camera,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -53,6 +54,8 @@ const CompanyProfilePage = () => {
   const [onChainData, setOnChainData] = useState(null);
   const [loadingOnChain, setLoadingOnChain] = useState(false);
   const [onChainError, setOnChainError] = useState(null);
+
+  const [logoUploading, setLogoUploading] = useState(false);
 
   // Document upload
   const [docFile, setDocFile] = useState(null);
@@ -129,6 +132,29 @@ const CompanyProfilePage = () => {
       toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setLogoUploading(true);
+      const token = localStorage.getItem("token");
+      const fd = new FormData();
+      fd.append("logo", file);
+      const res = await axios.post(`${BACKEND_URL}/company/profile/logo`, fd, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.success) {
+        setProfile((prev) => ({ ...prev, logo: res.data.url }));
+        toast.success("Company logo updated!");
+      }
+    } catch {
+      toast.error("Failed to upload logo");
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -217,14 +243,38 @@ const CompanyProfilePage = () => {
         >
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-6">
-              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-4xl font-bold text-white">{getInitial(profile?.companyName)}</span>
-              </div>
+              <label className="relative cursor-pointer group">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                  disabled={logoUploading}
+                />
+                <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+                  {profile?.logo ? (
+                    <img
+                      src={profile.logo}
+                      alt="logo"
+                      className="w-full h-full object-cover"
+                      onError={() => setProfile((prev) => ({ ...prev, logo: null }))}
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold text-white">{getInitial(profile?.companyName)}</span>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-2xl bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                  {logoUploading
+                    ? <Loader2 className="w-6 h-6 text-white animate-spin opacity-0 group-hover:opacity-100" />
+                    : <Camera className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  }
+                </div>
+              </label>
               <div>
                 <h2 className="text-3xl font-bold">{profile?.companyName || "Unnamed Company"}</h2>
                 <p className="text-blue-100 text-sm mt-1">{profile?.email || "No email"}</p>
                 <div className="flex items-center space-x-3 mt-3">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20 capitalize">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white text-indigo-700 capitalize">
                     {profile?.companyType?.replace("_", " ") || "Individual"}
                   </span>
                   <div className="flex items-center space-x-1">

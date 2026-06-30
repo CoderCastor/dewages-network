@@ -102,6 +102,23 @@ const createJob = async (req, res) => {
       });
     }
 
+    // Reject non-positive or non-numeric payment amounts
+    const parsedPayment = Number(paymentAmount);
+    if (!Number.isFinite(parsedPayment) || parsedPayment <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment amount — must be a positive number",
+      });
+    }
+
+    const parsedDuration = Number(durationHours);
+    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid duration — must be a positive number",
+      });
+    }
+
     // Get company details
     const company = await CompanyProfile.findOne({
       walletAddress: companyWallet,

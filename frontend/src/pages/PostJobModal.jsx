@@ -32,6 +32,22 @@ const JOB_CATEGORIES = [
   { value: "other", label: "Other" },
 ];
 
+// Maharashtra minimum daily wages (₹/day) — unskilled baseline per Jan 2026 govt notification
+// Source: Maharashtra Labour Dept revision effective 01-Jan-2026 (₹563/day base)
+// Skilled/semi-skilled schedules (construction, security) are higher per their own notifications
+const MH_MIN_WAGE = {
+  construction:   593,
+  delivery:       563,
+  domestic_help:  563,
+  event_staffing: 563,
+  agriculture:    563,
+  cleaning:       563,
+  security:       593,
+  other:          563,
+};
+
+const SOL_TO_INR = 8000;
+
 const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
   const { publicKey } = useWallet();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -585,6 +601,7 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                     </div>
                   </div>
 
+                  {/* Row 1: Category + Duration */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -592,9 +609,7 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                       </label>
                       <select
                         value={formData.category}
-                        onChange={(e) =>
-                          updateFormData("category", e.target.value)
-                        }
+                        onChange={(e) => updateFormData("category", e.target.value)}
                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                           errors.category ? "border-red-500" : "border-gray-300"
                         }`}
@@ -615,58 +630,54 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                           <AlertCircle size={14} /> {errors.category}
                         </motion.p>
                       )}
+                      {formData.category && MH_MIN_WAGE[formData.category] && (
+                        <p className="text-xs mt-1 text-blue-600 flex items-center gap-1">
+                          <Info size={12} />
+                          MH min. wage: ₹{MH_MIN_WAGE[formData.category]}/day
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Payment Amount (SOL){" "}
-                        <span className="text-red-500">*</span>
+                        Duration (Hours) <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
                           type="number"
-                          value={formData.paymentAmount}
-                          onChange={(e) =>
-                            updateFormData("paymentAmount", e.target.value)
-                          }
-                          placeholder="0.5"
-                          step="0.01"
-                          min="0.1"
+                          value={formData.durationHours}
+                          onChange={(e) => updateFormData("durationHours", e.target.value)}
+                          placeholder="8"
+                          min="1"
                           className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                            errors.paymentAmount
-                              ? "border-red-500"
-                              : "border-gray-300"
+                            errors.durationHours ? "border-red-500" : "border-gray-300"
                           }`}
                         />
                       </div>
-                      {errors.paymentAmount && (
+                      {errors.durationHours && (
                         <motion.p
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="text-red-500 text-sm mt-1 flex items-center gap-1"
                         >
-                          <AlertCircle size={14} /> {errors.paymentAmount}
+                          <AlertCircle size={14} /> {errors.durationHours}
                         </motion.p>
                       )}
-                      {formData.paymentAmount && (
+                      {formData.durationHours && (
                         <p className="text-gray-500 text-xs mt-1">
-                          ≈ ₹
-                          {(parseFloat(formData.paymentAmount) * 8000).toFixed(
-                            2
-                          )}
+                          ≈ {Math.ceil(parseInt(formData.durationHours) / 8)} working days
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {/* Location */}
+                  {/* Row 2: Location */}
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                       <MapPin className="w-5 h-5 text-blue-600" />
                       Location Details
                     </h3>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Address <span className="text-red-500">*</span>
@@ -674,14 +685,10 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                       <input
                         type="text"
                         value={formData.location.address}
-                        onChange={(e) =>
-                          updateFormData("location.address", e.target.value)
-                        }
+                        onChange={(e) => updateFormData("location.address", e.target.value)}
                         placeholder="Street address"
                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                          errors["location.address"]
-                            ? "border-red-500"
-                            : "border-gray-300"
+                          errors["location.address"] ? "border-red-500" : "border-gray-300"
                         }`}
                       />
                       {errors["location.address"] && (
@@ -694,7 +701,6 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                         </motion.p>
                       )}
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -703,14 +709,10 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                         <input
                           type="text"
                           value={formData.location.city}
-                          onChange={(e) =>
-                            updateFormData("location.city", e.target.value)
-                          }
+                          onChange={(e) => updateFormData("location.city", e.target.value)}
                           placeholder="Mumbai"
                           className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                            errors["location.city"]
-                              ? "border-red-500"
-                              : "border-gray-300"
+                            errors["location.city"] ? "border-red-500" : "border-gray-300"
                           }`}
                         />
                         {errors["location.city"] && (
@@ -723,7 +725,6 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                           </motion.p>
                         )}
                       </div>
-
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           State
@@ -731,9 +732,7 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                         <input
                           type="text"
                           value={formData.location.state}
-                          onChange={(e) =>
-                            updateFormData("location.state", e.target.value)
-                          }
+                          onChange={(e) => updateFormData("location.state", e.target.value)}
                           placeholder="Maharashtra"
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         />
@@ -741,60 +740,73 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                     </div>
                   </div>
 
-                  {/* Duration & Requirements */}
+                  {/* Row 3: Payment */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Duration (Hours) <span className="text-red-500">*</span>
+                      Payment Amount (SOL) <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
                         type="number"
-                        value={formData.durationHours}
-                        onChange={(e) =>
-                          updateFormData("durationHours", e.target.value)
-                        }
-                        placeholder="8"
-                        min="1"
+                        value={formData.paymentAmount}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || parseFloat(v) > 0) updateFormData("paymentAmount", v);
+                        }}
+                        placeholder="0.5"
+                        step="0.01"
+                        min="0.01"
                         className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                          errors.durationHours
-                            ? "border-red-500"
-                            : "border-gray-300"
+                          errors.paymentAmount ? "border-red-500" : "border-gray-300"
                         }`}
                       />
                     </div>
-                    {errors.durationHours && (
+                    {errors.paymentAmount && (
                       <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-red-500 text-sm mt-1 flex items-center gap-1"
                       >
-                        <AlertCircle size={14} /> {errors.durationHours}
+                        <AlertCircle size={14} /> {errors.paymentAmount}
                       </motion.p>
                     )}
-                    {formData.durationHours && (
+                    {formData.paymentAmount && (
                       <p className="text-gray-500 text-xs mt-1">
-                        ≈ {Math.ceil(parseInt(formData.durationHours) / 8)}{" "}
-                        working days
+                        ≈ ₹{(parseFloat(formData.paymentAmount) * SOL_TO_INR).toFixed(2)}
                       </p>
                     )}
+                    {formData.paymentAmount && formData.category && MH_MIN_WAGE[formData.category] && (() => {
+                      const inr = parseFloat(formData.paymentAmount) * SOL_TO_INR;
+                      const minPerDay = MH_MIN_WAGE[formData.category];
+                      const days = formData.durationHours && parseInt(formData.durationHours) > 0
+                        ? Math.ceil(parseInt(formData.durationHours) / 8)
+                        : 1;
+                      const minTotal = minPerDay * days;
+                      const below = inr < minTotal;
+                      return below ? (
+                        <p className="text-xs mt-1 text-amber-600 flex items-center gap-1 font-semibold">
+                          <AlertCircle size={12} />
+                          {days > 1
+                            ? `Below minimum (₹${minPerDay}/day × ${days} days = ₹${minTotal})`
+                            : `Below minimum (₹${minPerDay}/day)`}
+                        </p>
+                      ) : null;
+                    })()}
                   </div>
 
+                  {/* Row 4: Requirements */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Requirements <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       value={formData.requirements}
-                      onChange={(e) =>
-                        updateFormData("requirements", e.target.value)
-                      }
+                      onChange={(e) => updateFormData("requirements", e.target.value)}
                       placeholder="List specific requirements, skills, or tools needed..."
                       rows="3"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all ${
-                        errors.requirements
-                          ? "border-red-500"
-                          : "border-gray-300"
+                        errors.requirements ? "border-red-500" : "border-gray-300"
                       }`}
                       maxLength={300}
                     />
