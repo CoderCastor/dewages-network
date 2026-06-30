@@ -20,6 +20,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { BACKEND_URL, RPC_URL, PROGRAM_ID } from "@/env-variables";
 import idl from "@/idl/employment_platform.json" with { type: "json" };
+import { useSolPrice } from "@/hooks/useSolPrice";
 
 const JOB_CATEGORIES = [
   { value: "construction", label: "Construction" },
@@ -46,10 +47,9 @@ const MH_MIN_WAGE = {
   other:          563,
 };
 
-const SOL_TO_INR = 8000;
-
 const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
   const { publicKey } = useWallet();
+  const { solPriceINR, live: priceIsLive } = useSolPrice();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -395,7 +395,7 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
           },
           paymentAmount:
             parseFloat(formData.paymentAmount) * web3.LAMPORTS_PER_SOL,
-          paymentAmountINR: parseFloat(formData.paymentAmount) * 8000,
+          paymentAmountINR: parseFloat(formData.paymentAmount) * solPriceINR,
           durationHours: parseInt(formData.durationHours),
           requirements: formData.requirements,
         },
@@ -772,12 +772,13 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                       </motion.p>
                     )}
                     {formData.paymentAmount && (
-                      <p className="text-gray-500 text-xs mt-1">
-                        ≈ ₹{(parseFloat(formData.paymentAmount) * SOL_TO_INR).toFixed(2)}
+                      <p className="text-gray-500 text-xs mt-1 flex items-center gap-1">
+                        ≈ ₹{(parseFloat(formData.paymentAmount) * solPriceINR).toFixed(2)}
+                        {priceIsLive && <span className="text-green-500 font-medium">• live</span>}
                       </p>
                     )}
                     {formData.paymentAmount && formData.category && MH_MIN_WAGE[formData.category] && (() => {
-                      const inr = parseFloat(formData.paymentAmount) * SOL_TO_INR;
+                      const inr = parseFloat(formData.paymentAmount) * solPriceINR;
                       const minPerDay = MH_MIN_WAGE[formData.category];
                       const days = formData.durationHours && parseInt(formData.durationHours) > 0
                         ? Math.ceil(parseInt(formData.durationHours) / 8)
@@ -855,10 +856,7 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                           <span className="font-bold text-blue-900">
                             {formData.paymentAmount} SOL
                           </span>{" "}
-                          (≈ ₹
-                          {(parseFloat(formData.paymentAmount) * 8000).toFixed(
-                            2
-                          )}
+                          (≈ ₹{(parseFloat(formData.paymentAmount) * solPriceINR).toFixed(2)}
                           ) will be securely locked in an escrow smart contract.
                           The worker receives payment only after:
                         </p>
@@ -919,10 +917,7 @@ const PostJobModal = ({ isOpen, onClose, onJobPosted }) => {
                             {formData.paymentAmount} SOL
                           </p>
                           <p className="text-xs text-green-600">
-                            ≈ ₹
-                            {(
-                              parseFloat(formData.paymentAmount) * 8000
-                            ).toFixed(2)}
+                            ≈ ₹{(parseFloat(formData.paymentAmount) * solPriceINR).toFixed(2)}
                           </p>
                         </div>
 
