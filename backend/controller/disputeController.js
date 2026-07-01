@@ -233,61 +233,68 @@ export const adminResolveDispute = async (req, res) => {
       return res.status(400).json({ success: false, message: "Job is missing worker or company wallet. Cannot proceed." });
     }
 
-    // ── STEP 1: Ensure dispute account exists on-chain ───────────────────────
-    // For disputes raised by workers before this fix, or any case where
-    // the dispute account was not yet created on-chain, create it now.
-    let resolveDisputePDA = job.dispute?.disputePDA || null;
+    // ── STEP 1: Determine if this is an OTP-not-provided (DB-only) dispute ────
+    // These disputes were raised while the job was in_progress on-chain.
+    // The smart contract's createDispute requires PendingVerification status,
+    // so no on-chain dispute account exists. We handle resolution in DB only.
+    const isOtpNotProvidedDispute = job.dispute?.otpNotProvided === true && !job.dispute?.disputePDA;
 
-    if (!resolveDisputePDA) {
-      console.log("[Dispute] No disputePDA in DB — creating dispute account on-chain first...");
+    let txSignature = null;
+
+    if (isOtpNotProvidedDispute) {
+      console.log("[Dispute] OTP-not-provided dispute (no on-chain account) — resolving in DB only.");
+    } else {
+      // ── STEP 1b: Ensure dispute account exists on-chain ─────────────────────
+      let resolveDisputePDA = job.dispute?.disputePDA || null;
+
+      if (!resolveDisputePDA) {
+        console.log("[Dispute] No disputePDA in DB — creating dispute account on-chain first...");
+        try {
+          const createResult = await createDisputeOnChain({
+            jobPDA:  job.jobPDA,
+            reason:  job.dispute?.reason || "Admin-initiated dispute creation",
+          });
+          resolveDisputePDA = createResult.disputePDA;
+          job.dispute.disputePDA  = resolveDisputePDA;
+          job.dispute.txSignature = createResult.txSignature;
+          await job.save();
+          console.log("[Dispute] ✅ Dispute account created on-chain:", resolveDisputePDA);
+        } catch (createErr) {
+          console.error("❌ [Dispute] createDisputeOnChain FAILED:", createErr.message);
+          if (createErr.logs) createErr.logs.forEach(l => console.error("   >", l));
+          return res.status(502).json({
+            success: false,
+            message: "Failed to initialize dispute account on-chain. No changes made.",
+            error:   createErr.message,
+            logs:    createErr.logs || [],
+          });
+        }
+      }
+
+      // ── STEP 2: Resolve on-chain — abort everything if this fails ───────────
       try {
-        const createResult = await createDisputeOnChain({
-          jobPDA:  job.jobPDA,
-          reason:  job.dispute?.reason || "Admin-initiated dispute creation",
+        console.log("[Dispute] Calling resolveDisputeOnChain...");
+        const result = await resolveDisputeOnChain({
+          jobPDA:          job.jobPDA,
+          escrowPDA:       job.escrowPDA,
+          workerWallet:    job.assignedWorker,
+          employerWallet:  job.companyWallet,
+          disputePDA:      resolveDisputePDA,
+          resolution,
+          resolutionNotes: notes || resolution,
         });
-        resolveDisputePDA = createResult.disputePDA;
-        // Save PDA to DB so future attempts don't re-create
-        job.dispute.disputePDA  = resolveDisputePDA;
-        job.dispute.txSignature = createResult.txSignature;
-        await job.save();
-        console.log("[Dispute] ✅ Dispute account created on-chain:", resolveDisputePDA);
-      } catch (createErr) {
-        console.error("❌ [Dispute] createDisputeOnChain FAILED:", createErr.message);
-        if (createErr.logs) createErr.logs.forEach(l => console.error("   >", l));
+        txSignature = result.txSignature;
+        console.log("✅ [Dispute] On-chain resolveDispute succeeded:", txSignature);
+      } catch (chainErr) {
+        console.error("❌ [Dispute] On-chain resolveDispute FAILED:", chainErr.message);
+        if (chainErr.logs) chainErr.logs.forEach(l => console.error("   >", l));
         return res.status(502).json({
           success: false,
-          message: "Failed to initialize dispute account on-chain. No changes made.",
-          error:   createErr.message,
-          logs:    createErr.logs || [],
+          message: "On-chain transaction failed. No database changes were made.",
+          error: chainErr.message,
+          logs: chainErr.logs || [],
         });
       }
-    }
-
-    // ── STEP 2: Resolve on-chain — abort everything if this fails ────────────
-    let txSignature;
-    try {
-      console.log("[Dispute] Calling resolveDisputeOnChain...");
-      const result = await resolveDisputeOnChain({
-        jobPDA:          job.jobPDA,
-        escrowPDA:       job.escrowPDA,
-        workerWallet:    job.assignedWorker,
-        employerWallet:  job.companyWallet,
-        disputePDA:      resolveDisputePDA,
-        resolution,
-        resolutionNotes: notes || resolution,
-      });
-      txSignature = result.txSignature;
-      console.log("✅ [Dispute] On-chain resolveDispute succeeded:", txSignature);
-    } catch (chainErr) {
-      console.error("❌ [Dispute] On-chain resolveDispute FAILED:", chainErr.message);
-      if (chainErr.logs) chainErr.logs.forEach(l => console.error("   >", l));
-      // Hard stop — do NOT touch the database
-      return res.status(502).json({
-        success: false,
-        message: "On-chain transaction failed. No database changes were made.",
-        error: chainErr.message,
-        logs: chainErr.logs || [],
-      });
     }
 
     // ── STEP 2: On-chain confirmed — now update DB ───────────────────────────
@@ -302,9 +309,9 @@ export const adminResolveDispute = async (req, res) => {
     job.status             = "completed";
     job.completedAt        = new Date();
     job.fundTransfer = {
-      isTransferred:        true,
-      transferredAt:        new Date(),
-      transactionSignature: txSignature,
+      isTransferred:        !!txSignature,
+      transferredAt:        txSignature ? new Date() : null,
+      transactionSignature: txSignature || null,
       amount:               job.paymentAmount,
     };
     await job.save();
@@ -318,8 +325,8 @@ export const adminResolveDispute = async (req, res) => {
         jobTitle:        job.title,
         resolution,
         resolutionNotes: notes || resolution,
-        txSignature,
-        onChainSuccess:  true,
+        txSignature:     txSignature || null,
+        onChainSuccess:  !!txSignature,
         resolvedAt:      new Date(),
         dispute: {
           reason:         job.dispute.reason,
